@@ -1,0 +1,8 @@
+version: "3.9"
+
+services:
+  # Placeholder for later local development setup.
+  # Step 2 intentionally does not wire containers fully.
+  app-note:
+    image: alpine:latest
+    command: ["sh", "-c", "echo 'Docker setup will be added in a later step.' && sleep 3600"]
