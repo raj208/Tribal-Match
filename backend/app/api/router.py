@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.meta import router as meta_router
 from app.modules.auth.routes import router as auth_router
 from app.modules.users.routes import router as users_router
 from app.modules.profiles.routes import router as profiles_router
@@ -13,6 +14,7 @@ from app.modules.notifications.routes import router as notifications_router
 
 api_router = APIRouter()
 
+api_router.include_router(meta_router)
 api_router.include_router(auth_router)
 api_router.include_router(users_router)
 api_router.include_router(profiles_router)

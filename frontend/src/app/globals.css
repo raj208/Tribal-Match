@@ -6,13 +6,29 @@
   color-scheme: light;
 }
 
+html,
 body {
-  margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  background: #faf7f2;
-  color: #1f1f1f;
+  height: 100%;
 }
 
-* {
-  box-sizing: border-box;
+body {
+  @apply bg-stone-50 text-stone-900;
+}
+
+a {
+  @apply transition-colors;
+}
+
+@layer components {
+  .container-shell {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+  }
+
+  .card {
+    @apply rounded-2xl border border-stone-200 bg-white shadow-sm;
+  }
+
+  .soft-badge {
+    @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-medium;
+  }
 }

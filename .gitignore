@@ -6,8 +6,9 @@ out/
 # Python
 __pycache__/
 *.pyc
-.venv/
+.myenv/
 venv/
+myenv/
 .pytest_cache/
 .mypy_cache/
 
@@ -24,3 +25,8 @@ backend/.env
 
 # Logs
 *.log
+
+id_ed25519_personal
+id_ed25519_personal.pub
+id_ed25519_work
+id_ed25519_work.pub
