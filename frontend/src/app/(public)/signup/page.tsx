@@ -1,10 +1,13 @@
+import { SignupForm } from "@/components/auth/signup-form";
 import { PageShell } from "@/components/shared/page-shell";
 
-export default function Page() {
+export default function SignupPage() {
   return (
     <PageShell
       title="Signup"
-      description="Starter page for signup."
-    />
+      description="Create your Tribal Match account before continuing to profile creation."
+    >
+      <SignupForm />
+    </PageShell>
   );
 }

@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { LogoutButton } from "@/components/auth/logout-button";
+
 const links = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/browse", label: "Browse Profiles" },
@@ -21,7 +23,7 @@ export function AppSidebar() {
           Tribal Match
         </h2>
         <p className="mt-1 text-sm text-stone-600">
-          MVP foundation shell
+          Auth-enabled MVP shell
         </p>
       </div>
 
@@ -36,6 +38,10 @@ export function AppSidebar() {
           </Link>
         ))}
       </nav>
+
+      <div className="mt-5">
+        <LogoutButton />
+      </div>
     </aside>
   );
 }

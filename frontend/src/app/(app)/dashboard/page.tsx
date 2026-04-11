@@ -1,35 +1,53 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
 import { PageShell } from "@/components/shared/page-shell";
 import { getApiHealth, getApiModules } from "@/lib/api/meta";
 
-export default async function DashboardPage() {
-  let health: Awaited<ReturnType<typeof getApiHealth>> | null = null;
-  let modules: Awaited<ReturnType<typeof getApiModules>>["modules"] = [];
-  let err = "";
+type Health = Awaited<ReturnType<typeof getApiHealth>>;
+type Modules = Awaited<ReturnType<typeof getApiModules>>["modules"];
 
-  try {
-    const [healthRes, modulesRes] = await Promise.all([
-      getApiHealth(),
-      getApiModules(),
-    ]);
+export default function DashboardPage() {
+  const [health, setHealth] = useState<Health | null>(null);
+  const [modules, setModules] = useState<Modules>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-    health = healthRes;
-    modules = modulesRes.modules;
-  } catch (e) {
-    err = e instanceof Error ? e.message : "Unable to reach backend";
-  }
+  useEffect(() => {
+    let active = true;
+
+    Promise.all([getApiHealth(), getApiModules()])
+      .then(([healthRes, modulesRes]) => {
+        if (!active) return;
+        setHealth(healthRes);
+        setModules(modulesRes.modules);
+      })
+      .catch((err: Error) => {
+        if (!active) return;
+        setError(err.message || "Unable to reach backend");
+      })
+      .finally(() => {
+        if (!active) return;
+        setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <PageShell
       title="Dashboard"
-      description="This page confirms that the frontend app shell is working and that the backend foundation is reachable."
+      description="This page confirms that your session is active and the backend foundation is reachable."
     >
-      {err ? (
+      {loading ? (
+        <div className="card p-6 text-sm text-stone-600">Loading dashboard...</div>
+      ) : error ? (
         <div className="card border-red-200 p-5">
           <p className="text-sm font-medium text-red-700">Backend connection failed</p>
-          <p className="mt-2 text-sm text-red-600">{err}</p>
-          <p className="mt-3 text-sm text-stone-600">
-            Make sure your FastAPI server is running on port 8000.
-          </p>
+          <p className="mt-2 text-sm text-red-600">{error}</p>
         </div>
       ) : (
         <>
@@ -63,7 +81,7 @@ export default async function DashboardPage() {
                   Registered backend modules
                 </h3>
                 <p className="mt-1 text-sm text-stone-600">
-                  These are the modular monolith domains currently wired into the API router.
+                  These are the backend domains currently wired into the API router.
                 </p>
               </div>
 
@@ -78,9 +96,7 @@ export default async function DashboardPage() {
                   <p className="text-base font-semibold text-stone-900">
                     {module.name}
                   </p>
-                  <p className="mt-1 text-sm text-stone-500">
-                    {module.base_path}
-                  </p>
+                  <p className="mt-1 text-sm text-stone-500">{module.base_path}</p>
                   <span className="mt-3 inline-flex rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
                     {module.status}
                   </span>

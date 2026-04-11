@@ -1,10 +1,13 @@
+import { LoginForm } from "@/components/auth/login-form";
 import { PageShell } from "@/components/shared/page-shell";
 
-export default function Page() {
+export default function LoginPage() {
   return (
     <PageShell
       title="Login"
-      description="Starter page for login."
-    />
+      description="Use your Tribal Match account to access the app."
+    >
+      <LoginForm />
+    </PageShell>
   );
 }
