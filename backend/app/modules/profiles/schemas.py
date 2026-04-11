@@ -1,10 +1,32 @@
-# Schemas for the profiles module will be added in later steps.
 from datetime import date, datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.shared.enums import ProfileStatus, VerificationStatus
+
+
+class PreferenceUpsert(BaseModel):
+    preferred_min_age: int | None = Field(default=None, ge=18, le=100)
+    preferred_max_age: int | None = Field(default=None, ge=18, le=100)
+    preferred_locations: list[str] = Field(default_factory=list)
+    preferred_communities: list[str] = Field(default_factory=list)
+    preferred_languages: list[str] = Field(default_factory=list)
+
+
+class PreferenceRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    user_id: UUID
+    profile_id: UUID
+    preferred_min_age: int | None
+    preferred_max_age: int | None
+    preferred_locations: list[str]
+    preferred_communities: list[str]
+    preferred_languages: list[str]
+    created_at: datetime
+    updated_at: datetime
 
 
 class ProfileCreate(BaseModel):
@@ -23,6 +45,7 @@ class ProfileCreate(BaseModel):
     education: str | None = Field(default=None, max_length=120)
     bio: str | None = Field(default=None, max_length=2000)
     profile_visibility: str = Field(default="public", max_length=32)
+    preferences: PreferenceUpsert | None = None
 
 
 class ProfileUpdate(BaseModel):
@@ -42,6 +65,7 @@ class ProfileUpdate(BaseModel):
     bio: str | None = Field(default=None, max_length=2000)
     profile_visibility: str | None = Field(default=None, max_length=32)
     profile_status: ProfileStatus | None = None
+    preferences: PreferenceUpsert | None = None
 
 
 class ProfileRead(BaseModel):
@@ -69,3 +93,4 @@ class ProfileRead(BaseModel):
     completion_percentage: int
     created_at: datetime
     updated_at: datetime
+    preferences: PreferenceRead | None = None

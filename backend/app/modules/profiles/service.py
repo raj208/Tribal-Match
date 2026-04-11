@@ -1,11 +1,13 @@
-# Service logic for the profiles module will be added in later steps.
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.modules.profiles.models import Profile
+from app.modules.profiles.models import Preference, Profile
 from app.modules.profiles.repository import (
+    create_preference,
     create_profile,
+    get_preference_by_user_id,
     get_profile_by_user_id,
+    update_preference,
     update_profile,
 )
 from app.modules.profiles.schemas import ProfileCreate, ProfileUpdate
@@ -42,6 +44,29 @@ def _calculate_completion(data: dict) -> int:
     return int((filled / total) * 100)
 
 
+def _upsert_preferences(
+    db: Session,
+    current_user: User,
+    profile: Profile,
+    preference_payload: dict | None,
+) -> Preference | None:
+    if preference_payload is None:
+        return get_preference_by_user_id(db, current_user.id)
+
+    existing = get_preference_by_user_id(db, current_user.id)
+
+    data = {
+        "user_id": current_user.id,
+        "profile_id": profile.id,
+        **preference_payload,
+    }
+
+    if existing:
+        return update_preference(db, existing, data)
+
+    return create_preference(db, data)
+
+
 def create_my_profile(db: Session, current_user: User, payload: ProfileCreate) -> Profile:
     existing = get_profile_by_user_id(db, current_user.id)
     if existing:
@@ -51,10 +76,24 @@ def create_my_profile(db: Session, current_user: User, payload: ProfileCreate) -
         )
 
     data = payload.model_dump()
+    preference_payload = data.pop("preferences", None)
+
     data["user_id"] = current_user.id
     data["completion_percentage"] = _calculate_completion(data)
 
-    return create_profile(db, data)
+    profile = create_profile(db, data)
+
+    if preference_payload is not None:
+        _upsert_preferences(db, current_user, profile, preference_payload)
+
+    refreshed = get_profile_by_user_id(db, current_user.id)
+    if not refreshed:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Profile was created but could not be reloaded",
+        )
+
+    return refreshed
 
 
 def get_my_profile(db: Session, current_user: User) -> Profile:
@@ -76,6 +115,7 @@ def update_my_profile(db: Session, current_user: User, payload: ProfileUpdate) -
         )
 
     updates = payload.model_dump(exclude_unset=True)
+    preference_payload = updates.pop("preferences", None)
 
     merged = {
         "full_name": updates.get("full_name", profile.full_name),
@@ -91,4 +131,16 @@ def update_my_profile(db: Session, current_user: User, payload: ProfileUpdate) -
 
     updates["completion_percentage"] = _calculate_completion(merged)
 
-    return update_profile(db, profile, updates)
+    update_profile(db, profile, updates)
+
+    if preference_payload is not None:
+        _upsert_preferences(db, current_user, profile, preference_payload)
+
+    refreshed = get_profile_by_user_id(db, current_user.id)
+    if not refreshed:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Profile was updated but could not be reloaded",
+        )
+
+    return refreshed
