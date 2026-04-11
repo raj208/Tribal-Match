@@ -7,7 +7,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.shared.enums import ProfileStatus, VerificationStatus
+from app.shared.enums import ProfileStatus, VerificationStatus, enum_values
 
 
 class Profile(Base):
@@ -33,12 +33,17 @@ class Profile(Base):
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
     profile_visibility: Mapped[str] = mapped_column(String(32), default="public", nullable=False)
     profile_status: Mapped[ProfileStatus] = mapped_column(
-        Enum(ProfileStatus, name="profile_status_enum"),
+        Enum(ProfileStatus, name="profile_status_enum", values_callable=enum_values, validate_strings=True),
         default=ProfileStatus.DRAFT,
         nullable=False,
     )
     verification_status: Mapped[VerificationStatus] = mapped_column(
-        Enum(VerificationStatus, name="verification_status_enum"),
+        Enum(
+            VerificationStatus,
+            name="verification_status_enum",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         default=VerificationStatus.NOT_STARTED,
         nullable=False,
     )

@@ -6,7 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.shared.enums import ModerationStatus, VerificationStatus
+from app.shared.enums import ModerationStatus, VerificationStatus, enum_values
 
 
 class ProfilePhoto(Base):
@@ -23,7 +23,7 @@ class ProfilePhoto(Base):
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     moderation_status: Mapped[ModerationStatus] = mapped_column(
-        Enum(ModerationStatus, name="moderation_status_enum"),
+        Enum(ModerationStatus, name="moderation_status_enum", values_callable=enum_values, validate_strings=True),
         default=ModerationStatus.CLEAN,
         nullable=False,
     )
@@ -49,7 +49,12 @@ class IntroVideo(Base):
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     upload_status: Mapped[str] = mapped_column(String(32), default="uploaded", nullable=False)
     verification_status: Mapped[VerificationStatus] = mapped_column(
-        Enum(VerificationStatus, name="video_verification_status_enum"),
+        Enum(
+            VerificationStatus,
+            name="video_verification_status_enum",
+            values_callable=enum_values,
+            validate_strings=True,
+        ),
         default=VerificationStatus.UPLOADED,
         nullable=False,
     )

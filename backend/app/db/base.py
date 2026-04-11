@@ -1,4 +1,3 @@
-# SQLAlchemy base metadata import point will be added later.
 from sqlalchemy.orm import DeclarativeBase
 
 
@@ -6,6 +5,8 @@ class Base(DeclarativeBase):
     pass
 
 
-from app.modules.users.models import User  # noqa: E402,F401
-from app.modules.profiles.models import Profile, Preference  # noqa: E402,F401
-from app.modules.media.models import IntroVideo, ProfilePhoto  # noqa: E402,F401 
+# Import model modules after Base is defined so SQLAlchemy registers all
+# mapped classes even when application code imports a single module directly.
+import app.modules.users.models  # noqa: E402,F401
+import app.modules.profiles.models  # noqa: E402,F401
+import app.modules.media.models  # noqa: E402,F401
