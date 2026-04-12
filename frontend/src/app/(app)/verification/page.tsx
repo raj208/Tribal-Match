@@ -6,7 +6,7 @@ export default function VerificationPage() {
   return (
     <PageShell
       title="Media & Verification"
-      description="This step uses placeholder media URLs. Later, we will replace this with real image and video upload flows."
+      description="You can now upload real local image and video files. Later we can swap this local storage provider with Cloudflare or a mobile-friendly provider."
     >
       <PhotoManager />
       <VideoVerificationCard />

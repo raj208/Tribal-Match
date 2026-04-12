@@ -7,7 +7,7 @@ import type { VerificationState } from "@/types/media";
 
 export function VideoVerificationCard() {
   const [data, setData] = useState<VerificationState | null>(null);
-  const [videoUrl, setVideoUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [duration, setDuration] = useState("20");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -19,9 +19,8 @@ export function VideoVerificationCard() {
       const result = await getMyVerification();
       setData(result);
 
-      if (result.intro_video) {
-        setVideoUrl(result.intro_video.video_url);
-        setDuration(String(result.intro_video.duration_seconds ?? 20));
+      if (result.intro_video?.duration_seconds) {
+        setDuration(String(result.intro_video.duration_seconds));
       }
 
       setError("");
@@ -42,8 +41,8 @@ export function VideoVerificationCard() {
     setError("");
     setNotice("");
 
-    if (!videoUrl.trim()) {
-      setError("Video URL is required.");
+    if (!selectedFile) {
+      setError("Please select a video file.");
       return;
     }
 
@@ -56,16 +55,16 @@ export function VideoVerificationCard() {
     try {
       setSaving(true);
 
-      const payload = {
-        video_url: videoUrl.trim(),
-        duration_seconds: durationValue,
-      };
-
       const result = data?.intro_video
-        ? await reuploadIntroVideo(payload)
-        : await uploadIntroVideo(payload);
+        ? await reuploadIntroVideo(selectedFile, durationValue)
+        : await uploadIntroVideo(selectedFile, durationValue);
 
       setData(result);
+      setSelectedFile(null);
+
+      const input = document.getElementById("video-file-input") as HTMLInputElement | null;
+      if (input) input.value = "";
+
       setNotice(data?.intro_video ? "Intro video reuploaded." : "Intro video uploaded.");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to save intro video";
@@ -79,7 +78,7 @@ export function VideoVerificationCard() {
     <div className="card p-6">
       <h3 className="text-lg font-semibold text-stone-900">Intro video verification</h3>
       <p className="mt-2 text-sm text-stone-600">
-        For now, paste a hosted video URL and set duration between 20 and 30 seconds.
+        Upload a real video file here. Keep it between 20 and 30 seconds.
       </p>
 
       {error ? (
@@ -112,12 +111,13 @@ export function VideoVerificationCard() {
 
       <form onSubmit={handleSubmit} className="mt-6 grid gap-4 md:grid-cols-2">
         <label className="text-sm md:col-span-2">
-          <span className="mb-2 block font-medium text-stone-700">Video URL</span>
+          <span className="mb-2 block font-medium text-stone-700">Select video</span>
           <input
-            value={videoUrl}
-            onChange={(e) => setVideoUrl(e.target.value)}
+            id="video-file-input"
+            type="file"
+            accept="video/mp4,video/webm,video/quicktime,video/x-m4v"
+            onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
             className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-500"
-            placeholder="https://example.com/intro-video.mp4"
           />
         </label>
 
@@ -139,22 +139,19 @@ export function VideoVerificationCard() {
             disabled={saving}
             className="rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
           >
-            {saving ? "Saving..." : data?.intro_video ? "Reupload video" : "Upload video"}
+            {saving ? "Uploading..." : data?.intro_video ? "Reupload video" : "Upload video"}
           </button>
         </div>
       </form>
 
       {data?.intro_video ? (
         <div className="mt-6 rounded-2xl border border-stone-200 p-4">
-          <p className="text-sm text-stone-500">Current video URL</p>
-          <a
-            href={data.intro_video.video_url}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-2 block break-all text-sm text-blue-700 underline"
-          >
-            {data.intro_video.video_url}
-          </a>
+          <p className="text-sm text-stone-500">Current uploaded video</p>
+          <video
+            controls
+            className="mt-3 w-full rounded-xl border border-stone-200"
+            src={data.intro_video.video_url}
+          />
         </div>
       ) : null}
     </div>

@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 
-import { addPhoto, deletePhoto, listMyPhotos, setPrimaryPhoto } from "@/lib/api/media";
+import { deletePhoto, listMyPhotos, setPrimaryPhoto, uploadPhoto } from "@/lib/api/media";
 import type { Photo } from "@/types/media";
 
 export function PhotoManager() {
   const [photos, setPhotos] = useState<Photo[]>([]);
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sortOrder, setSortOrder] = useState("0");
   const [isPrimary, setIsPrimary] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -37,26 +37,26 @@ export function PhotoManager() {
     setError("");
     setNotice("");
 
-    if (!photoUrl.trim()) {
-      setError("Photo URL is required.");
+    if (!selectedFile) {
+      setError("Please select an image file.");
       return;
     }
 
     try {
       setSaving(true);
-      await addPhoto({
-        photo_url: photoUrl.trim(),
-        sort_order: Number(sortOrder || 0),
-        is_primary: isPrimary,
-      });
+      await uploadPhoto(selectedFile, Number(sortOrder || 0), isPrimary);
 
-      setPhotoUrl("");
+      setSelectedFile(null);
       setSortOrder("0");
       setIsPrimary(false);
-      setNotice("Photo placeholder added.");
+
+      const input = document.getElementById("photo-file-input") as HTMLInputElement | null;
+      if (input) input.value = "";
+
+      setNotice("Photo uploaded.");
       await loadPhotos();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to add photo";
+      const msg = err instanceof Error ? err.message : "Failed to upload photo";
       setError(msg);
     } finally {
       setSaving(false);
@@ -96,7 +96,7 @@ export function PhotoManager() {
       <div className="card p-6">
         <h3 className="text-lg font-semibold text-stone-900">Profile photos</h3>
         <p className="mt-2 text-sm text-stone-600">
-          This is a placeholder media flow. Paste image URLs for now. Real upload storage comes later.
+          Upload real image files here. These are stored locally for development right now.
         </p>
 
         {error ? (
@@ -113,12 +113,13 @@ export function PhotoManager() {
 
         <form onSubmit={handleAddPhoto} className="mt-5 grid gap-4 md:grid-cols-2">
           <label className="text-sm md:col-span-2">
-            <span className="mb-2 block font-medium text-stone-700">Photo URL</span>
+            <span className="mb-2 block font-medium text-stone-700">Select image</span>
             <input
-              value={photoUrl}
-              onChange={(e) => setPhotoUrl(e.target.value)}
+              id="photo-file-input"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
               className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-500"
-              placeholder="https://example.com/photo.jpg"
             />
           </label>
 
@@ -147,7 +148,7 @@ export function PhotoManager() {
               disabled={saving}
               className="rounded-xl bg-stone-900 px-5 py-3 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
             >
-              {saving ? "Adding..." : "Add photo"}
+              {saving ? "Uploading..." : "Upload photo"}
             </button>
           </div>
         </form>
@@ -164,7 +165,7 @@ export function PhotoManager() {
         {loading ? (
           <p className="mt-4 text-sm text-stone-600">Loading photos...</p>
         ) : photos.length === 0 ? (
-          <p className="mt-4 text-sm text-stone-600">No photos added yet.</p>
+          <p className="mt-4 text-sm text-stone-600">No photos uploaded yet.</p>
         ) : (
           <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {photos.map((photo) => (

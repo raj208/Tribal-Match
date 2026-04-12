@@ -1,8 +1,9 @@
 import json
 from functools import lru_cache
-from pathlib import Path
+from json import JSONDecodeError
+from typing import Any
 
-from pydantic import Field, field_validator
+from pydantic import Field
 from pydantic_settings import (
     BaseSettings,
     DotEnvSettingsSource,
@@ -11,37 +12,76 @@ from pydantic_settings import (
     SettingsConfigDict,
 )
 
-BASE_DIR = Path(__file__).resolve().parents[2]
+
+def _parse_cors_origins(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+
+    raw_value = value.strip()
+    if not raw_value:
+        return []
+
+    # Accept a single URL or comma-separated URLs from `.env` without requiring JSON syntax.
+    try:
+        parsed_value = json.loads(raw_value)
+    except JSONDecodeError:
+        return [origin.strip() for origin in raw_value.split(",") if origin.strip()]
+
+    if isinstance(parsed_value, str):
+        return [parsed_value]
+
+    if isinstance(parsed_value, list):
+        return [str(origin).strip() for origin in parsed_value if str(origin).strip()]
+
+    return parsed_value
 
 
-class CorsOriginsEnvSettingsSource(EnvSettingsSource):
-    def prepare_field_value(self, field_name, field, value, value_is_complex):
+class FlexibleEnvSettingsSource(EnvSettingsSource):
+    def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
         if field_name == "backend_cors_origins":
-            return value
+            return _parse_cors_origins(value)
+
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
-class CorsOriginsDotEnvSettingsSource(DotEnvSettingsSource):
-    def prepare_field_value(self, field_name, field, value, value_is_complex):
+class FlexibleDotEnvSettingsSource(DotEnvSettingsSource):
+    def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
         if field_name == "backend_cors_origins":
-            return value
+            return _parse_cors_origins(value)
+
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     app_name: str = Field(default="Tribal Match API", alias="APP_NAME")
     app_env: str = Field(default="development", alias="APP_ENV")
     app_debug: bool = Field(default=True, alias="APP_DEBUG")
     api_v1_prefix: str = Field(default="/api/v1", alias="API_V1_PREFIX")
+
+    backend_cors_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        alias="BACKEND_CORS_ORIGINS",
+    )
+
     database_url: str = Field(
-        default="postgresql+psycopg://postgres:newpassword@localhost:5433/tribal_match",
+        default="postgresql+psycopg://postgres:postgres@localhost:5432/tribal_match",
         alias="DATABASE_URL",
     )
-    supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
-    sentry_dsn: str = Field(default="", alias="SENTRY_DSN")
-    backend_cors_origins: list[str] = Field(default=["http://localhost:3000"], alias="BACKEND_CORS_ORIGINS")
+
+    supabase_url: str = Field(default="", alias="SUPABASE_URL")
+    supabase_server_key: str = Field(default="", alias="SUPABASE_SERVER_KEY")
+
+    media_upload_dir: str = Field(default="./storage/uploads", alias="MEDIA_UPLOAD_DIR")
+    media_public_base_url: str = Field(
+        default="http://localhost:8000/uploads",
+        alias="MEDIA_PUBLIC_BASE_URL",
+    )
 
     @classmethod
     def settings_customise_sources(
@@ -54,22 +94,28 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             init_settings,
-            CorsOriginsEnvSettingsSource(settings_cls),
-            CorsOriginsDotEnvSettingsSource(settings_cls),
+            FlexibleEnvSettingsSource(
+                settings_cls,
+                case_sensitive=getattr(env_settings, "case_sensitive", None),
+                env_prefix=getattr(env_settings, "env_prefix", None),
+                env_nested_delimiter=getattr(env_settings, "env_nested_delimiter", None),
+                env_ignore_empty=getattr(env_settings, "env_ignore_empty", None),
+                env_parse_none_str=getattr(env_settings, "env_parse_none_str", None),
+                env_parse_enums=getattr(env_settings, "env_parse_enums", None),
+            ),
+            FlexibleDotEnvSettingsSource(
+                settings_cls,
+                env_file=getattr(dotenv_settings, "env_file", None),
+                env_file_encoding=getattr(dotenv_settings, "env_file_encoding", None),
+                case_sensitive=getattr(dotenv_settings, "case_sensitive", None),
+                env_prefix=getattr(dotenv_settings, "env_prefix", None),
+                env_nested_delimiter=getattr(dotenv_settings, "env_nested_delimiter", None),
+                env_ignore_empty=getattr(dotenv_settings, "env_ignore_empty", None),
+                env_parse_none_str=getattr(dotenv_settings, "env_parse_none_str", None),
+                env_parse_enums=getattr(dotenv_settings, "env_parse_enums", None),
+            ),
             file_secret_settings,
         )
-
-    @field_validator("backend_cors_origins", mode="before")
-    @classmethod
-    def parse_cors_origins(cls, value: str | list[str]) -> list[str]:
-        if isinstance(value, list):
-            return value
-        stripped_value = value.strip()
-        if stripped_value.startswith("["):
-            parsed_value = json.loads(stripped_value)
-            if isinstance(parsed_value, list):
-                return [str(item).strip() for item in parsed_value if str(item).strip()]
-        return [item.strip() for item in value.split(",") if item.strip()]
 
 
 @lru_cache

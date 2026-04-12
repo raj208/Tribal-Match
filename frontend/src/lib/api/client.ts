@@ -9,9 +9,13 @@ type RequestOptions = {
   body?: unknown;
 };
 
-async function buildHeaders() {
+async function buildHeaders(body?: unknown) {
   const headers = new Headers();
-  headers.set("Content-Type", "application/json");
+
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
+  if (!isFormData) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (typeof window === "undefined") {
     return headers;
@@ -35,13 +39,18 @@ async function buildHeaders() {
 
 async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body } = options;
-  const headers = await buildHeaders();
+  const headers = await buildHeaders(body);
 
   const res = await fetch(`${API_BASE_URL}${path}`, {
     method,
     cache: "no-store",
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body instanceof FormData
+        ? body
+        : body !== undefined
+        ? JSON.stringify(body)
+        : undefined,
   });
 
   if (!res.ok) {

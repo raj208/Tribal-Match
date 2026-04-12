@@ -1,10 +1,10 @@
-# Service logic for the media module will be added in later steps.
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.modules.media.models import ProfilePhoto
+from app.modules.media.providers import LocalMediaStorageProvider
 from app.modules.media.repository import (
     clear_primary_for_profile,
     create_photo,
@@ -13,7 +13,6 @@ from app.modules.media.repository import (
     list_photos_by_profile_id,
     update_photo,
 )
-from app.modules.media.schemas import PhotoCreate
 from app.modules.profiles.repository import get_profile_by_user_id
 from app.modules.users.models import User
 
@@ -35,7 +34,14 @@ def list_my_photos(db: Session, current_user: User) -> list[ProfilePhoto]:
     return list_photos_by_profile_id(db, profile.id)
 
 
-def add_my_photo(db: Session, current_user: User, payload: PhotoCreate) -> ProfilePhoto:
+def upload_my_photo_file(
+    db: Session,
+    current_user: User,
+    *,
+    file: UploadFile,
+    sort_order: int,
+    is_primary: bool,
+) -> ProfilePhoto:
     profile = _get_profile_or_404(db, current_user)
     existing = list_photos_by_profile_id(db, profile.id)
 
@@ -45,15 +51,21 @@ def add_my_photo(db: Session, current_user: User, payload: PhotoCreate) -> Profi
             detail="You can upload a maximum of 6 profile photos",
         )
 
-    should_be_primary = payload.is_primary or len(existing) == 0
+    storage = LocalMediaStorageProvider()
+    photo_url = storage.save_photo(file)
+
+    should_be_primary = is_primary or len(existing) == 0
 
     if should_be_primary:
         clear_primary_for_profile(db, profile.id)
 
-    data = payload.model_dump()
-    data["user_id"] = current_user.id
-    data["profile_id"] = profile.id
-    data["is_primary"] = should_be_primary
+    data = {
+        "user_id": current_user.id,
+        "profile_id": profile.id,
+        "photo_url": photo_url,
+        "sort_order": sort_order,
+        "is_primary": should_be_primary,
+    }
 
     return create_photo(db, data)
 

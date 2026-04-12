@@ -1,7 +1,7 @@
-# Service logic for the verification module will be added in later steps.
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
+from app.modules.media.providers import LocalMediaStorageProvider
 from app.modules.profiles.repository import get_profile_by_user_id
 from app.modules.users.models import User
 from app.modules.verification.repository import (
@@ -9,7 +9,6 @@ from app.modules.verification.repository import (
     get_intro_video_by_profile_id,
     update_intro_video,
 )
-from app.modules.verification.schemas import IntroVideoUpsert
 from app.shared.enums import VerificationStatus
 
 
@@ -33,16 +32,34 @@ def get_my_verification(db: Session, current_user: User) -> dict:
     }
 
 
-def upsert_my_intro_video(db: Session, current_user: User, payload: IntroVideoUpsert) -> dict:
+def upsert_my_intro_video_file(
+    db: Session,
+    current_user: User,
+    *,
+    file: UploadFile,
+    duration_seconds: int,
+) -> dict:
+    if duration_seconds < 20 or duration_seconds > 30:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Intro video must be between 20 and 30 seconds",
+        )
+
     profile = _get_profile_or_404(db, current_user)
     existing = get_intro_video_by_profile_id(db, profile.id)
 
-    data = payload.model_dump()
-    data["user_id"] = current_user.id
-    data["profile_id"] = profile.id
-    data["upload_status"] = "uploaded"
-    data["verification_status"] = VerificationStatus.UPLOADED
-    data["moderation_notes"] = None
+    storage = LocalMediaStorageProvider()
+    video_url = storage.save_video(file)
+
+    data = {
+        "user_id": current_user.id,
+        "profile_id": profile.id,
+        "video_url": video_url,
+        "duration_seconds": duration_seconds,
+        "upload_status": "uploaded",
+        "verification_status": VerificationStatus.UPLOADED,
+        "moderation_notes": None,
+    }
 
     if existing:
         update_intro_video(db, existing, data)

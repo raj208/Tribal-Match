@@ -1,13 +1,13 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, File, Form, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.users.models import User
-from app.modules.verification.schemas import IntroVideoUpsert, VerificationRead
-from app.modules.verification.service import get_my_verification, upsert_my_intro_video
+from app.modules.verification.schemas import VerificationRead
+from app.modules.verification.service import get_my_verification, upsert_my_intro_video_file
 
 router = APIRouter(prefix="/verification", tags=["verification"])
 
@@ -25,19 +25,31 @@ def get_my_verification_route(
     return get_my_verification(db, current_user)
 
 
-@router.post("/video", response_model=VerificationRead, status_code=status.HTTP_201_CREATED)
+@router.post("/video/upload", response_model=VerificationRead, status_code=status.HTTP_201_CREATED)
 def upload_intro_video_route(
-    payload: IntroVideoUpsert,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    file: UploadFile = File(...),
+    duration_seconds: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> VerificationRead:
-    return upsert_my_intro_video(db, current_user, payload)
+    return upsert_my_intro_video_file(
+        db,
+        current_user,
+        file=file,
+        duration_seconds=duration_seconds,
+    )
 
 
 @router.patch("/video/reupload", response_model=VerificationRead)
 def reupload_intro_video_route(
-    payload: IntroVideoUpsert,
-    db: Annotated[Session, Depends(get_db)],
-    current_user: Annotated[User, Depends(get_current_user)],
+    file: UploadFile = File(...),
+    duration_seconds: int = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> VerificationRead:
-    return upsert_my_intro_video(db, current_user, payload)
+    return upsert_my_intro_video_file(
+        db,
+        current_user,
+        file=file,
+        duration_seconds=duration_seconds,
+    )
