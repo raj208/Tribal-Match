@@ -2,18 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { getPublicProfile } from "@/lib/api/discovery";
 import { sendInterest } from "@/lib/api/interests";
+import { blockProfile, reportProfile } from "@/lib/api/moderation";
 import { addToShortlist } from "@/lib/api/shortlist";
 import type { PublicProfile } from "@/types/discovery";
 
 export function ProfileDetailView({ profileId }: { profileId: string }) {
+  const router = useRouter();
+
   const [profile, setProfile] = useState<PublicProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [actionLoading, setActionLoading] = useState<"shortlist" | "interest" | "">("");
+  const [actionLoading, setActionLoading] = useState<
+    "shortlist" | "interest" | "report" | "block" | ""
+  >("");
+
+  const [reasonCode, setReasonCode] = useState("fake_profile");
+  const [reportNotes, setReportNotes] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -69,6 +78,48 @@ export function ProfileDetailView({ profileId }: { profileId: string }) {
       const msg = err instanceof Error ? err.message : "Failed to send interest";
       setError(msg);
     } finally {
+      setActionLoading("");
+    }
+  }
+
+  async function handleReport(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!profile) return;
+
+    setError("");
+    setNotice("");
+    setActionLoading("report");
+
+    try {
+      const result = await reportProfile(profile.id, reasonCode, reportNotes);
+      setNotice(result.message);
+      setReportNotes("");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to submit report";
+      setError(msg);
+    } finally {
+      setActionLoading("");
+    }
+  }
+
+  async function handleBlock() {
+    if (!profile) return;
+
+    setError("");
+    setNotice("");
+    setActionLoading("block");
+
+    try {
+      const result = await blockProfile(profile.id);
+      setNotice(`${result.message} Redirecting to browse...`);
+
+      setTimeout(() => {
+        router.replace("/browse");
+        router.refresh();
+      }, 700);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to block profile";
+      setError(msg);
       setActionLoading("");
     }
   }
@@ -135,6 +186,15 @@ export function ProfileDetailView({ profileId }: { profileId: string }) {
             >
               {actionLoading === "interest" ? "Sending..." : "Express interest"}
             </button>
+
+            <button
+              type="button"
+              onClick={handleBlock}
+              disabled={actionLoading !== ""}
+              className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+            >
+              {actionLoading === "block" ? "Blocking..." : "Block"}
+            </button>
           </div>
         </div>
       </div>
@@ -172,6 +232,51 @@ export function ProfileDetailView({ profileId }: { profileId: string }) {
       <div className="card p-6">
         <h3 className="text-lg font-semibold text-stone-900">About</h3>
         <p className="mt-3 text-sm text-stone-700">{profile.bio || "—"}</p>
+      </div>
+
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold text-stone-900">Report this profile</h3>
+        <p className="mt-2 text-sm text-stone-600">
+          Report profiles that look fake, abusive, inappropriate, or unsafe.
+        </p>
+
+        <form onSubmit={handleReport} className="mt-5 grid gap-4">
+          <label className="text-sm">
+            <span className="mb-2 block font-medium text-stone-700">Reason</span>
+            <select
+              value={reasonCode}
+              onChange={(e) => setReasonCode(e.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-500"
+            >
+              <option value="fake_profile">Fake profile</option>
+              <option value="spam">Spam</option>
+              <option value="harassment">Harassment</option>
+              <option value="inappropriate_content">Inappropriate content</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+
+          <label className="text-sm">
+            <span className="mb-2 block font-medium text-stone-700">Notes</span>
+            <textarea
+              value={reportNotes}
+              onChange={(e) => setReportNotes(e.target.value)}
+              rows={4}
+              className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-500"
+              placeholder="Add optional details"
+            />
+          </label>
+
+          <div>
+            <button
+              type="submit"
+              disabled={actionLoading !== ""}
+              className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100 disabled:opacity-60"
+            >
+              {actionLoading === "report" ? "Submitting..." : "Submit report"}
+            </button>
+          </div>
+        </form>
       </div>
 
       <div className="card p-6">

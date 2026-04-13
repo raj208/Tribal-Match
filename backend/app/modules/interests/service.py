@@ -1,9 +1,8 @@
-# Service logic for the interests module will be added in later steps.
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session
 
 from app.modules.interests.repository import (
     create_interest,
@@ -16,6 +15,7 @@ from app.modules.interests.repository import (
     list_sent_interests_for_user,
     list_shortlists_for_user,
 )
+from app.modules.moderation.repository import is_blocked_between
 from app.modules.profiles.models import Profile
 from app.modules.users.models import User
 from app.shared.enums import InterestStatus, ProfileStatus
@@ -33,13 +33,9 @@ def _get_primary_photo_url(profile) -> str | None:
 
 
 def _get_target_profile_or_404(db: Session, *, profile_id: UUID, current_user: User) -> Profile:
-    stmt = (
-        select(Profile)
-        .options(selectinload(Profile.photos))
-        .where(
-            Profile.id == profile_id,
-            Profile.profile_status == ProfileStatus.PUBLISHED,
-        )
+    stmt = select(Profile).where(
+        Profile.id == profile_id,
+        Profile.profile_status == ProfileStatus.PUBLISHED,
     )
     profile = db.scalar(stmt)
 
@@ -53,6 +49,16 @@ def _get_target_profile_or_404(db: Session, *, profile_id: UUID, current_user: U
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="You cannot interact with your own profile",
+        )
+
+    if is_blocked_between(
+        db,
+        user_a_id=current_user.id,
+        user_b_id=profile.user_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Interaction unavailable for this profile",
         )
 
     return profile

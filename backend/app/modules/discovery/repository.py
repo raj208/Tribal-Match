@@ -1,10 +1,25 @@
 from uuid import UUID
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
+from app.modules.moderation.models import Block
 from app.modules.profiles.models import Profile
 from app.shared.enums import ProfileStatus
+
+
+def _blocked_exists_condition(current_user_id: UUID):
+    return (
+        select(Block.id)
+        .where(
+            or_(
+                and_(Block.blocker_user_id == current_user_id, Block.blocked_user_id == Profile.user_id),
+                and_(Block.blocker_user_id == Profile.user_id, Block.blocked_user_id == current_user_id),
+            )
+        )
+        .correlate(Profile)
+        .exists()
+    )
 
 
 def _build_conditions(
@@ -20,6 +35,7 @@ def _build_conditions(
     conditions = [
         Profile.profile_status == ProfileStatus.PUBLISHED,
         Profile.user_id != current_user_id,
+        ~_blocked_exists_condition(current_user_id),
     ]
 
     if q:
@@ -111,6 +127,7 @@ def get_discoverable_profile_by_id(
             Profile.id == profile_id,
             Profile.profile_status == ProfileStatus.PUBLISHED,
             Profile.user_id != current_user_id,
+            ~_blocked_exists_condition(current_user_id),
         )
     )
     return db.scalar(stmt)
