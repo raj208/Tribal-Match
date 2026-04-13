@@ -22,6 +22,7 @@ type FormState = {
   education: string;
   bio: string;
   profile_visibility: string;
+  profile_status: string;
   preferred_min_age: string;
   preferred_max_age: string;
   preferred_locations: string;
@@ -45,6 +46,7 @@ const EMPTY_FORM: FormState = {
   education: "",
   bio: "",
   profile_visibility: "public",
+  profile_status: "draft",
   preferred_min_age: "",
   preferred_max_age: "",
   preferred_locations: "",
@@ -81,6 +83,7 @@ function toFormState(profile: Profile): FormState {
     education: profile.education ?? "",
     bio: profile.bio ?? "",
     profile_visibility: profile.profile_visibility ?? "public",
+    profile_status: profile.profile_status ?? "draft",
     preferred_min_age: profile.preferences?.preferred_min_age?.toString() ?? "",
     preferred_max_age: profile.preferences?.preferred_max_age?.toString() ?? "",
     preferred_locations: joinCsv(profile.preferences?.preferred_locations),
@@ -126,6 +129,7 @@ function buildPayload(form: FormState): ProfilePayload {
     education: toNullableString(form.education),
     bio: toNullableString(form.bio),
     profile_visibility: form.profile_visibility || "public",
+    profile_status: form.profile_status || "draft",
     preferences: preferencesFilled
       ? {
           preferred_min_age: toNullableNumber(form.preferred_min_age),
@@ -391,6 +395,20 @@ export function ProfileForm() {
               <option value="private">private</option>
             </select>
           </label>
+
+          <label className="text-sm">
+            <span className="mb-2 block font-medium text-stone-700">Profile status</span>
+            <select
+              value={form.profile_status}
+              onChange={(e) => updateField("profile_status", e.target.value)}
+              className="w-full rounded-xl border border-stone-300 px-3 py-2 outline-none focus:border-stone-500"
+            >
+              <option value="draft">draft</option>
+              <option value="published">published</option>
+            </select>
+          </label>
+
+
         </div>
 
         <label className="mt-4 block text-sm">

@@ -35,3 +35,8 @@ id_ed25519_work.pub
 # Docs
 /project_docs
 *.env.example
+
+
+#Storage
+backend/storage
+

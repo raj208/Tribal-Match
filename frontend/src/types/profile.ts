@@ -53,6 +53,7 @@ export type ProfilePayload = {
   education: string | null;
   bio: string | null;
   profile_visibility: string;
+  profile_status: string;
   preferences: {
     preferred_min_age: number | null;
     preferred_max_age: number | null;

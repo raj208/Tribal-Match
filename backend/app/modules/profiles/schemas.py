@@ -45,6 +45,7 @@ class ProfileCreate(BaseModel):
     education: str | None = Field(default=None, max_length=120)
     bio: str | None = Field(default=None, max_length=2000)
     profile_visibility: str = Field(default="public", max_length=32)
+    profile_status: ProfileStatus = ProfileStatus.DRAFT
     preferences: PreferenceUpsert | None = None
 
 
