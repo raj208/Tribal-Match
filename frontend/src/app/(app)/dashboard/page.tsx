@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 
 import { PageShell } from "@/components/shared/page-shell";
+import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
 import { getApiHealth, getApiModules } from "@/lib/api/meta";
 
 type Health = Awaited<ReturnType<typeof getApiHealth>>;
 type Modules = Awaited<ReturnType<typeof getApiModules>>["modules"];
 
 export default function DashboardPage() {
+  const { summary, loading: summaryLoading, error: summaryError } = useDashboardSummary();
   const [health, setHealth] = useState<Health | null>(null);
   const [modules, setModules] = useState<Modules>([]);
   const [loading, setLoading] = useState(true);
@@ -72,6 +74,34 @@ export default function DashboardPage() {
                 {health?.env ?? "-"}
               </p>
             </div>
+          </div>
+
+          <div className="card p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold text-stone-900">
+                  Dashboard summary payload
+                </h3>
+                <p className="mt-1 text-sm text-stone-600">
+                  Temporary raw response from <code>/dashboard/summary</code> for
+                  frontend integration testing.
+                </p>
+              </div>
+            </div>
+
+            {summaryLoading ? (
+              <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
+                Loading dashboard summary...
+              </div>
+            ) : summaryError ? (
+              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                {summaryError}
+              </div>
+            ) : (
+              <pre className="mt-5 overflow-x-auto rounded-2xl bg-stone-950 p-4 text-xs text-stone-100">
+                {JSON.stringify(summary, null, 2)}
+              </pre>
+            )}
           </div>
 
           <div className="card p-6">
