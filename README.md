@@ -1,31 +1,85 @@
 # Tribal Match
 
-Step 2 scaffold for the Tribal Match MVP.
+Tribal Match is a local full-stack app with:
 
-This scaffold includes:
-- frontend Next.js + TypeScript starter structure
-- backend FastAPI modular monolith starter structure
-- base routers and placeholder modules
-- env templates
+- `frontend/` for the Next.js web app
+- `backend/` for the FastAPI API
+- `docker-compose.yml` for the local Postgres database
 
-## Scope of this step
-This step only sets up structure and starter wiring.
-It does **not** yet include:
-- database schema
-- auth integration
-- real business logic
-- media provider integration
-- API contract finalization
+## Fastest Local Run
 
-## Project structure
+Use this path if you just want the app running with minimal setup.
 
-- `frontend/` — Next.js app structure
-- `backend/` — FastAPI app structure
-- `.env.example` — shared environment reference
+### Prerequisites
 
-## Next intended step
-Implement foundation setup and run configuration:
-- install dependencies
-- make frontend and backend boot locally
-- add shared enums/constants
-- wire protected route placeholders
+- Docker Desktop
+- Node.js 20+
+- Python 3.10+
+
+### 1. Start Postgres
+
+From the repo root:
+
+```bash
+docker compose up -d postgres
+```
+
+The database will be available at `localhost:5433`.
+
+### 2. Start the backend
+
+Open a new terminal:
+
+```bash
+cd backend
+cp .env.example .env
+python -m venv .venv
+source .venv/Scripts/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
+
+Notes:
+
+- Use a fresh `.venv`. Do not rely on the checked-in `backend/myenv` folder.
+- In development, database migrations run automatically on backend startup.
+- The API will be available at `http://127.0.0.1:8000`.
+- Swagger docs will be available at `http://127.0.0.1:8000/docs`.
+
+If you use PowerShell instead of Git Bash, activate the virtual environment with:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+```
+
+### 3. Start the frontend
+
+Open another terminal:
+
+```bash
+cd frontend
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+The web app will be available at `http://localhost:3000`.
+
+## Env Defaults
+
+The local setup expects:
+
+- frontend API base URL: `http://localhost:8000/api/v1`
+- Postgres URL: `postgresql+psycopg://postgres:newpassword@localhost:5433/tribal_match`
+
+These defaults already match `docker-compose.yml` and the example env files.
+
+## Quick Stop
+
+To stop the database:
+
+```bash
+docker compose down
+```
+
+To stop the app servers, press `Ctrl+C` in the frontend and backend terminals.
