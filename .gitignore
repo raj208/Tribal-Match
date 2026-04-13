@@ -40,3 +40,5 @@ id_ed25519_work.pub
 #Storage
 backend/storage
 
+*.cpp
+

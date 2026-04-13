@@ -73,6 +73,10 @@ class Settings(BaseSettings):
         default="postgresql+psycopg://postgres:postgres@localhost:5432/tribal_match",
         alias="DATABASE_URL",
     )
+    run_db_migrations_on_startup: bool = Field(
+        default=False,
+        alias="RUN_DB_MIGRATIONS_ON_STARTUP",
+    )
 
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_server_key: str = Field(default="", alias="SUPABASE_SERVER_KEY")

@@ -26,7 +26,6 @@ class VerificationStatus(StrEnum):
 
 class InterestStatus(StrEnum):
     SENT = "sent"
-    RECEIVED = "received"
     ACCEPTED = "accepted"
     DECLINED = "declined"
 

@@ -1,10 +1,13 @@
+import { InterestsClient } from "@/components/interests/interests-client";
 import { PageShell } from "@/components/shared/page-shell";
 
-export default function Page() {
+export default function InterestsPage() {
   return (
     <PageShell
       title="Interests"
-      description="Authenticated starter page for interests."
-    />
+      description="Track interests you sent and interests you received."
+    >
+      <InterestsClient />
+    </PageShell>
   );
 }
