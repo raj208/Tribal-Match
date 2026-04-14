@@ -18,8 +18,11 @@ import type {
 type SettingsQueryResult = {
   settings: SettingsSummary | null;
   loading: boolean;
+  refreshing: boolean;
   error: string;
   reload: () => void;
+  replaceSettings: (value: SettingsSummary) => void;
+  mergeSettings: (value: Partial<SettingsSummary>) => void;
 };
 
 type UpdateSettingsMutationResult = {
@@ -57,6 +60,7 @@ export function useSettingsSummary(): SettingsQueryResult {
   const { user, loading: authLoading } = useAuth();
   const [settings, setSettings] = useState<SettingsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
   const [reloadKey, setReloadKey] = useState(0);
 
@@ -69,11 +73,18 @@ export function useSettingsSummary(): SettingsQueryResult {
       setSettings(null);
       setError("");
       setLoading(false);
+      setRefreshing(false);
       return;
     }
 
     let active = true;
-    setLoading(true);
+    const hasExistingSettings = settings !== null;
+
+    if (hasExistingSettings) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
     getMySettings()
       .then((data) => {
@@ -83,12 +94,15 @@ export function useSettingsSummary(): SettingsQueryResult {
       })
       .catch((err: unknown) => {
         if (!active) return;
-        setSettings(null);
+        if (!hasExistingSettings) {
+          setSettings(null);
+        }
         setError(toApiErrorMessage(err, "Unable to load settings"));
       })
       .finally(() => {
         if (!active) return;
         setLoading(false);
+        setRefreshing(false);
       });
 
     return () => {
@@ -99,8 +113,17 @@ export function useSettingsSummary(): SettingsQueryResult {
   return {
     settings,
     loading,
+    refreshing,
     error,
     reload: () => setReloadKey((value) => value + 1),
+    replaceSettings: (value) => {
+      setSettings(value);
+      setError("");
+    },
+    mergeSettings: (value) => {
+      setSettings((current) => (current ? { ...current, ...value } : current));
+      setError("");
+    },
   };
 }
 
@@ -131,32 +154,17 @@ export function useUpdateSettings(): UpdateSettingsMutationResult {
 }
 
 export function useDeactivateProfile(): LifecycleMutationResult {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  async function mutate() {
-    setLoading(true);
-    setError("");
-
-    try {
-      return await deactivateMyProfile();
-    } catch (err: unknown) {
-      setError(toApiErrorMessage(err, "Unable to deactivate profile"));
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return {
-    mutate,
-    loading,
-    error,
-    reset: () => setError(""),
-  };
+  return useLifecycleMutation(deactivateMyProfile, "Unable to deactivate profile");
 }
 
 export function useDeleteProfile(): LifecycleMutationResult {
+  return useLifecycleMutation(deleteMyProfile, "Unable to delete profile");
+}
+
+function useLifecycleMutation(
+  action: () => Promise<SettingsLifecycleResponse>,
+  fallbackMessage: string
+): LifecycleMutationResult {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -165,9 +173,9 @@ export function useDeleteProfile(): LifecycleMutationResult {
     setError("");
 
     try {
-      return await deleteMyProfile();
+      return await action();
     } catch (err: unknown) {
-      setError(toApiErrorMessage(err, "Unable to delete profile"));
+      setError(toApiErrorMessage(err, fallbackMessage));
       return null;
     } finally {
       setLoading(false);
