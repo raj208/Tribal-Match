@@ -5,6 +5,7 @@ import Link from "next/link";
 import { PageShell } from "@/components/shared/page-shell";
 import { useAuth } from "@/hooks/use-auth";
 import { useDashboardSummary } from "@/hooks/use-dashboard-summary";
+import { appRoutes } from "@/lib/constants/routes";
 
 type GuidanceItem = {
   title: string;
@@ -13,6 +14,11 @@ type GuidanceItem = {
   label: string;
   tone: string;
 };
+
+function normalizeName(value: string | null | undefined) {
+  if (!value) return "there";
+  return value.replace(/[._-]+/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 function formatLabel(value: string | null | undefined) {
   if (!value) return "Not started";
@@ -23,6 +29,25 @@ function formatLabel(value: string | null | undefined) {
 
 function formatPercent(value: number) {
   return `${Math.max(0, Math.min(100, value))}%`;
+}
+
+function toSafeCount(value: number | null | undefined, max?: number) {
+  const count = typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0;
+  return typeof max === "number" ? Math.min(max, count) : count;
+}
+
+function toSafePercent(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.max(0, Math.min(100, Math.round(value)))
+    : 0;
+}
+
+function toSafeBoolean(value: boolean | null | undefined) {
+  return value === true;
+}
+
+function safeHref(href: string) {
+  return appRoutes.includes(href) ? href : "/dashboard";
 }
 
 function getProfileStatusBadgeClass(status: string | null) {
@@ -41,13 +66,9 @@ function getVerificationBadgeClass(status: string | null) {
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { summary, loading, error } = useDashboardSummary();
+  const { summary, loading, error, reload } = useDashboardSummary();
 
-  const welcomeName =
-    user?.email
-      ?.split("@")[0]
-      ?.replace(/[._-]+/g, " ")
-      .replace(/\b\w/g, (char) => char.toUpperCase()) || "there";
+  const welcomeName = normalizeName(user?.email?.split("@")[0]);
 
   if (loading) {
     return (
@@ -55,7 +76,43 @@ export default function DashboardPage() {
         title="Dashboard"
         description="Track your profile readiness, verification progress, and recent activity from one place."
       >
-        <div className="card p-6 text-sm text-stone-600">Loading dashboard...</div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <div className="card p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 w-28 rounded bg-stone-200" />
+              <div className="h-8 w-3/4 rounded bg-stone-200" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="h-24 rounded-2xl bg-stone-100" />
+                <div className="h-24 rounded-2xl bg-stone-100" />
+              </div>
+              <div className="h-2 rounded-full bg-stone-100" />
+              <div className="h-10 w-32 rounded-xl bg-stone-200" />
+            </div>
+          </div>
+
+          <div className="card p-6">
+            <div className="animate-pulse space-y-4">
+              <div className="h-4 w-36 rounded bg-stone-200" />
+              <div className="h-8 w-2/3 rounded bg-stone-200" />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="h-24 rounded-2xl bg-stone-100" />
+                <div className="h-24 rounded-2xl bg-stone-100" />
+              </div>
+              <div className="h-10 w-48 rounded-xl bg-stone-200" />
+            </div>
+          </div>
+        </div>
+
+        <div className="card p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 w-28 rounded bg-stone-200" />
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="h-24 rounded-2xl bg-stone-100" />
+              <div className="h-24 rounded-2xl bg-stone-100" />
+              <div className="h-24 rounded-2xl bg-stone-100" />
+            </div>
+          </div>
+        </div>
       </PageShell>
     );
   }
@@ -69,51 +126,75 @@ export default function DashboardPage() {
         <div className="card border-red-200 p-6">
           <p className="text-sm font-medium text-red-700">Failed to load dashboard</p>
           <p className="mt-2 text-sm text-red-600">{error || "Dashboard data is unavailable."}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={reload}
+              className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+            >
+              Retry
+            </button>
+            <Link
+              href={safeHref("/browse")}
+              className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
+            >
+              Browse Profiles
+            </Link>
+          </div>
         </div>
       </PageShell>
     );
   }
 
-  const profileActionLabel = summary.profile_exists ? "Edit Profile" : "Create Profile";
-  const completionWidth = `${Math.max(0, Math.min(100, summary.completion_percentage))}%`;
+  const profileExists = summary.profile_exists === true;
+  const profileStatus = profileExists ? summary.profile_status : null;
+  const verificationStatus = profileExists ? summary.verification_status : (summary.verification_status ?? "not_started");
+  const completionPercentage = toSafePercent(summary.completion_percentage);
+  const photoCount = toSafeCount(summary.photo_count, 6);
+  const hasIntroVideo = toSafeBoolean(summary.has_intro_video);
+  const shortlistCount = toSafeCount(summary.shortlist_count);
+  const sentInterestsCount = toSafeCount(summary.sent_interests_count);
+  const receivedInterestsCount = toSafeCount(summary.received_interests_count);
+  const profileActionLabel = profileExists ? "Edit Profile" : "Create Profile";
+  const completionWidth = `${completionPercentage}%`;
 
   const guidanceItems: GuidanceItem[] = [];
 
-  if (!summary.profile_exists) {
+  if (!profileExists) {
     guidanceItems.push({
       title: "Create your profile to get started",
       body: "Add your basic details and preferences so your dashboard and matching journey can begin.",
-      href: "/profile/edit",
+      href: safeHref("/profile/edit"),
       label: "Create Profile",
       tone: "border-amber-200 bg-amber-50 text-amber-900",
     });
   }
 
-  if (summary.profile_exists && (summary.profile_status === "draft" || summary.completion_percentage < 100)) {
+  if (profileExists && (profileStatus === "draft" || completionPercentage < 100)) {
     guidanceItems.push({
       title: "Complete your profile for better visibility",
-      body: `Your profile is ${formatPercent(summary.completion_percentage)} complete. Add the missing details and publish when ready.`,
-      href: "/profile/edit",
+      body: `Your profile is ${formatPercent(completionPercentage)} complete. Add the missing details and publish when ready.`,
+      href: safeHref("/profile/edit"),
       label: "Continue Profile",
       tone: "border-stone-200 bg-stone-50 text-stone-900",
     });
   }
 
-  if (summary.photo_count === 0) {
+  if (photoCount === 0) {
     guidanceItems.push({
       title: "Add profile photos",
       body: "Profiles with photos are easier to review. You can upload up to 6 photos.",
-      href: "/verification",
+      href: safeHref("/verification"),
       label: "Manage Photos",
       tone: "border-stone-200 bg-stone-50 text-stone-900",
     });
   }
 
-  if (!summary.has_intro_video) {
+  if (!hasIntroVideo) {
     guidanceItems.push({
       title: "Upload your intro video",
       body: "A short intro video supports verification and makes your profile more complete.",
-      href: "/verification",
+      href: safeHref("/verification"),
       label: "Upload Video",
       tone: "border-stone-200 bg-stone-50 text-stone-900",
     });
@@ -121,27 +202,27 @@ export default function DashboardPage() {
 
   const quickActions = [
     {
-      href: "/browse",
+      href: safeHref("/browse"),
       title: "Browse Profiles",
       description: "Explore published profiles available in discovery.",
     },
     {
-      href: "/shortlisted",
+      href: safeHref("/shortlisted"),
       title: "View Shortlisted",
       description: "Review the profiles you have already saved.",
     },
     {
-      href: "/interests",
+      href: safeHref("/interests"),
       title: "View Interests",
       description: "See the interests you sent and the ones you received.",
     },
     {
-      href: "/profile/edit",
+      href: safeHref("/profile/edit"),
       title: "Edit Profile",
       description: "Update your details, preferences, and profile completion.",
     },
     {
-      href: "/verification",
+      href: safeHref("/verification"),
       title: "Manage Verification",
       description: "Upload photos and manage your intro video verification.",
     },
@@ -153,21 +234,21 @@ export default function DashboardPage() {
       description={`Welcome back, ${welcomeName}. Keep track of your profile, verification progress, and recent activity here.`}
       action={
         <Link
-          href="/browse"
+          href={safeHref("/browse")}
           className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
         >
           Browse Profiles
         </Link>
       }
     >
-      {!summary.profile_exists ? (
+      {!profileExists ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
           <p className="text-sm font-semibold text-amber-900">Your profile has not been created yet</p>
           <p className="mt-2 text-sm text-amber-800">
             Create your profile first so you can upload media, appear in discovery, and manage your matchmaking activity.
           </p>
           <Link
-            href="/profile/edit"
+            href={safeHref("/profile/edit")}
             className="mt-4 inline-flex rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
           >
             Create Profile
@@ -181,14 +262,14 @@ export default function DashboardPage() {
             <div>
               <p className="text-sm text-stone-500">Profile summary</p>
               <h3 className="mt-2 text-lg font-semibold text-stone-900">
-                {summary.profile_exists ? "Your profile is active in the app" : "Profile setup pending"}
+                {profileExists ? "Your profile is active in the app" : "Profile setup pending"}
               </h3>
             </div>
 
             <span
-              className={`soft-badge ${summary.profile_exists ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-700"}`}
+              className={`soft-badge ${profileExists ? "bg-green-100 text-green-700" : "bg-stone-100 text-stone-700"}`}
             >
-              {summary.profile_exists ? "Profile created" : "No profile yet"}
+              {profileExists ? "Profile created" : "No profile yet"}
             </span>
           </div>
 
@@ -196,8 +277,8 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-stone-200 p-4">
               <p className="text-sm text-stone-500">Profile status</p>
               <div className="mt-2 flex items-center gap-2">
-                <span className={`soft-badge ${getProfileStatusBadgeClass(summary.profile_status)}`}>
-                  {summary.profile_status ? formatLabel(summary.profile_status) : "Not created"}
+                <span className={`soft-badge ${getProfileStatusBadgeClass(profileStatus)}`}>
+                  {profileStatus ? formatLabel(profileStatus) : "Not created"}
                 </span>
               </div>
             </div>
@@ -205,7 +286,7 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-stone-200 p-4">
               <p className="text-sm text-stone-500">Completion</p>
               <p className="mt-2 text-2xl font-semibold text-stone-900">
-                {formatPercent(summary.completion_percentage)}
+                {formatPercent(completionPercentage)}
               </p>
             </div>
           </div>
@@ -221,7 +302,7 @@ export default function DashboardPage() {
 
           <div className="mt-5">
             <Link
-              href="/profile/edit"
+              href={safeHref("/profile/edit")}
               className="inline-flex rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
             >
               {profileActionLabel}
@@ -238,8 +319,8 @@ export default function DashboardPage() {
               </h3>
             </div>
 
-            <span className={`soft-badge ${getVerificationBadgeClass(summary.verification_status)}`}>
-              {formatLabel(summary.verification_status)}
+            <span className={`soft-badge ${getVerificationBadgeClass(verificationStatus)}`}>
+              {formatLabel(verificationStatus)}
             </span>
           </div>
 
@@ -247,20 +328,20 @@ export default function DashboardPage() {
             <div className="rounded-2xl border border-stone-200 p-4">
               <p className="text-sm text-stone-500">Photos</p>
               <p className="mt-2 text-2xl font-semibold text-stone-900">
-                {summary.photo_count}/6
+                {photoCount}/6
               </p>
               <p className="mt-1 text-sm text-stone-600">
-                {summary.photo_count > 0 ? "Photos uploaded" : "No photos uploaded yet"}
+                {photoCount > 0 ? "Photos uploaded" : "No photos uploaded yet"}
               </p>
             </div>
 
             <div className="rounded-2xl border border-stone-200 p-4">
               <p className="text-sm text-stone-500">Intro video</p>
               <p className="mt-2 text-2xl font-semibold text-stone-900">
-                {summary.has_intro_video ? "Uploaded" : "Missing"}
+                {hasIntroVideo ? "Uploaded" : "Missing"}
               </p>
               <p className="mt-1 text-sm text-stone-600">
-                {summary.has_intro_video
+                {hasIntroVideo
                   ? "Your intro video is on file."
                   : "Upload a video to strengthen your profile."}
               </p>
@@ -269,7 +350,7 @@ export default function DashboardPage() {
 
           <div className="mt-5">
             <Link
-              href="/verification"
+              href={safeHref("/verification")}
               className="inline-flex rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
             >
               Manage Verification & Media
@@ -289,17 +370,17 @@ export default function DashboardPage() {
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-stone-200 p-5">
             <p className="text-sm text-stone-500">Shortlisted</p>
-            <p className="mt-2 text-3xl font-semibold text-stone-900">{summary.shortlist_count}</p>
+            <p className="mt-2 text-3xl font-semibold text-stone-900">{shortlistCount}</p>
           </div>
 
           <div className="rounded-2xl border border-stone-200 p-5">
             <p className="text-sm text-stone-500">Sent interests</p>
-            <p className="mt-2 text-3xl font-semibold text-stone-900">{summary.sent_interests_count}</p>
+            <p className="mt-2 text-3xl font-semibold text-stone-900">{sentInterestsCount}</p>
           </div>
 
           <div className="rounded-2xl border border-stone-200 p-5">
             <p className="text-sm text-stone-500">Received interests</p>
-            <p className="mt-2 text-3xl font-semibold text-stone-900">{summary.received_interests_count}</p>
+            <p className="mt-2 text-3xl font-semibold text-stone-900">{receivedInterestsCount}</p>
           </div>
         </div>
       </div>

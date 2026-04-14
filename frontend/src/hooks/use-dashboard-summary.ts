@@ -10,6 +10,7 @@ type UseDashboardSummaryResult = {
   summary: DashboardSummary | null;
   loading: boolean;
   error: string;
+  reload: () => void;
 };
 
 export function useDashboardSummary(): UseDashboardSummaryResult {
@@ -17,6 +18,7 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (authLoading) {
@@ -52,11 +54,12 @@ export function useDashboardSummary(): UseDashboardSummaryResult {
     return () => {
       active = false;
     };
-  }, [authLoading, user]);
+  }, [authLoading, reloadKey, user]);
 
   return {
     summary,
     loading,
     error,
+    reload: () => setReloadKey((value) => value + 1),
   };
 }
