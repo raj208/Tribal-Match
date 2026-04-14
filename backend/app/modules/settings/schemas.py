@@ -14,3 +14,9 @@ class SettingsMeRead(BaseModel):
 
 class SettingsMeUpdate(BaseModel):
     profile_visibility: str | None = Field(default=None, max_length=32)
+
+
+class SettingsDeactivateResponse(BaseModel):
+    success: bool
+    profile_status: ProfileStatus
+    message: str

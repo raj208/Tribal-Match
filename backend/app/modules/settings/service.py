@@ -3,9 +3,13 @@ from sqlalchemy.orm import Session
 
 from app.modules.profiles.models import Profile
 from app.modules.settings.repository import get_profile_by_user_id, update_profile
-from app.modules.settings.schemas import SettingsMeRead, SettingsMeUpdate
+from app.modules.settings.schemas import (
+    SettingsDeactivateResponse,
+    SettingsMeRead,
+    SettingsMeUpdate,
+)
 from app.modules.users.models import User
-from app.shared.enums import VerificationStatus
+from app.shared.enums import ProfileStatus, VerificationStatus
 
 
 def _build_settings_summary(*, current_user: User, profile: Profile | None) -> SettingsMeRead:
@@ -52,3 +56,29 @@ def update_my_settings_summary(
         profile = update_profile(db, profile, updates)
 
     return _build_settings_summary(current_user=current_user, profile=profile)
+
+
+def deactivate_my_profile(
+    db: Session,
+    *,
+    current_user: User,
+) -> SettingsDeactivateResponse:
+    profile = get_profile_by_user_id(db, user_id=current_user.id)
+    if not profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found",
+        )
+
+    if profile.profile_status != ProfileStatus.DEACTIVATED:
+        profile = update_profile(
+            db,
+            profile,
+            {"profile_status": ProfileStatus.DEACTIVATED},
+        )
+
+    return SettingsDeactivateResponse(
+        success=True,
+        profile_status=profile.profile_status,
+        message="Profile deactivated successfully.",
+    )
