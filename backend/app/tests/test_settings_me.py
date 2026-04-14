@@ -94,3 +94,57 @@ def test_settings_me_returns_existing_profile_summary(client, db_session: Sessio
         "verification_status": "uploaded",
         "completion_percentage": 80,
     }
+
+
+def test_patch_settings_me_requires_auth(client) -> None:
+    response = client.patch(
+        SETTINGS_ME_PATH,
+        json={"profile_visibility": "private"},
+    )
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required"}
+
+
+def test_patch_settings_me_returns_404_when_profile_is_missing(client) -> None:
+    response = client.patch(
+        SETTINGS_ME_PATH,
+        headers=_auth_headers("missing-profile-update@example.com"),
+        json={"profile_visibility": "private"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Profile not found"}
+
+
+def test_patch_settings_me_updates_profile_visibility_and_returns_summary(client, db_session: Session) -> None:
+    user = _create_user(db_session, "settings-update@example.com")
+    profile = _create_profile(
+        db_session,
+        user=user,
+        full_name="Settings Update User",
+        profile_visibility="public",
+        profile_status=ProfileStatus.PUBLISHED,
+        verification_status=VerificationStatus.APPROVED,
+        completion_percentage=90,
+    )
+
+    response = client.patch(
+        SETTINGS_ME_PATH,
+        headers=_auth_headers(user.email),
+        json={"profile_visibility": "private"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "email": "settings-update@example.com",
+        "profile_exists": True,
+        "profile_visibility": "private",
+        "profile_status": "published",
+        "verification_status": "approved",
+        "completion_percentage": 90,
+    }
+
+    refreshed_profile = db_session.get(Profile, profile.id)
+    assert refreshed_profile is not None
+    assert refreshed_profile.profile_visibility == "private"
