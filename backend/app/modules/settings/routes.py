@@ -7,12 +7,14 @@ from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.settings.schemas import (
     SettingsDeactivateResponse,
+    SettingsDeleteResponse,
     SettingsMeRead,
     SettingsMeUpdate,
 )
 from app.modules.settings.service import (
     deactivate_my_profile,
     get_my_settings_summary,
+    soft_delete_my_profile,
     update_my_settings_summary,
 )
 from app.modules.users.models import User
@@ -48,3 +50,11 @@ def deactivate_my_profile_route(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> SettingsDeactivateResponse:
     return deactivate_my_profile(db, current_user=current_user)
+
+
+@router.delete("/me", response_model=SettingsDeleteResponse)
+def soft_delete_my_profile_route(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> SettingsDeleteResponse:
+    return soft_delete_my_profile(db, current_user=current_user)

@@ -20,3 +20,9 @@ class SettingsDeactivateResponse(BaseModel):
     success: bool
     profile_status: ProfileStatus
     message: str
+
+
+class SettingsDeleteResponse(BaseModel):
+    success: bool
+    profile_status: ProfileStatus
+    message: str
