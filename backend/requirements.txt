@@ -7,3 +7,4 @@ alembic==1.13.3
 psycopg[binary]==3.2.3
 python-dotenv==1.0.1
 python-multipart
+PyJWT[crypto]==2.10.1

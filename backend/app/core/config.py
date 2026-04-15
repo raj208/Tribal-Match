@@ -80,6 +80,14 @@ class Settings(BaseSettings):
 
     supabase_url: str = Field(default="", alias="SUPABASE_URL")
     supabase_server_key: str = Field(default="", alias="SUPABASE_SERVER_KEY")
+    supabase_jwt_secret: str = Field(default="", alias="SUPABASE_JWT_SECRET")
+    supabase_jwks_url: str = Field(default="", alias="SUPABASE_JWKS_URL")
+    supabase_jwt_issuer: str = Field(default="", alias="SUPABASE_JWT_ISSUER")
+    supabase_jwt_audience: str = Field(default="authenticated", alias="SUPABASE_JWT_AUDIENCE")
+    supabase_jwt_algorithms: str = Field(
+        default="HS256,RS256,ES256,EdDSA",
+        alias="SUPABASE_JWT_ALGORITHMS",
+    )
 
     media_upload_dir: str = Field(default="./storage/uploads", alias="MEDIA_UPLOAD_DIR")
     media_public_base_url: str = Field(

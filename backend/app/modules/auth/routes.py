@@ -2,7 +2,8 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from app.modules.auth.dependencies import get_current_user
+from app.modules.auth.dependencies import get_current_user, get_verified_supabase_claims
+from app.modules.auth.schemas import SupabaseTokenIdentity
 from app.modules.users.models import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -23,3 +24,10 @@ def auth_me(
         "role": current_user.role,
         "account_status": current_user.account_status,
     }
+
+
+@router.get("/_debug/me", response_model=SupabaseTokenIdentity)
+def auth_debug_me(
+    claims: Annotated[dict[str, object], Depends(get_verified_supabase_claims)],
+) -> SupabaseTokenIdentity:
+    return SupabaseTokenIdentity.from_claims(claims)
