@@ -1,5 +1,10 @@
-import { apiGet, apiPost } from "@/lib/api/client";
-import type { InterestItem } from "@/types/interactions";
+import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import type {
+  InterestAction,
+  InterestActionPayload,
+  InterestActionResponse,
+  InterestItem,
+} from "@/types/interactions";
 
 export function sendInterest(receiverProfileId: string) {
   return apiPost<InterestItem>("/interests", {
@@ -13,4 +18,9 @@ export function listSentInterests() {
 
 export function listReceivedInterests() {
   return apiGet<InterestItem[]>("/interests/received");
+}
+
+export function actOnInterest(interestId: string, action: InterestAction) {
+  const payload: InterestActionPayload = { action };
+  return apiPatch<InterestActionResponse>(`/interests/${interestId}`, payload);
 }

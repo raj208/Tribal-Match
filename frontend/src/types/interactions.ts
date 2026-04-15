@@ -1,3 +1,5 @@
+import type { InterestDirection, InterestStatus } from "@/types";
+
 export type ShortlistItem = {
   id: string;
   profile_id: string;
@@ -25,7 +27,18 @@ export type InterestItem = {
   bio: string | null;
   verification_status: string;
   primary_photo_url: string | null;
-  status: string;
-  direction: string;
+  status: InterestStatus;
+  direction: InterestDirection;
   created_at: string;
+};
+
+export type InterestAction = "accept" | "decline";
+
+export type InterestActionPayload = {
+  action: InterestAction;
+};
+
+export type InterestActionResponse = {
+  id: string;
+  status: InterestStatus;
 };
