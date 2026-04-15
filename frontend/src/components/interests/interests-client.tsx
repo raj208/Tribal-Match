@@ -1,41 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
-import { listReceivedInterests, listSentInterests } from "@/lib/api/interests";
-import type { InterestItem } from "@/types/interactions";
+import {
+  useInterestAction,
+  useReceivedInterests,
+  useSentInterests,
+} from "@/hooks/use-interests";
+import type { InterestAction } from "@/types/interactions";
+
+type PendingAction = {
+  interestId: string;
+  action: InterestAction;
+} | null;
 
 export function InterestsClient() {
   const [tab, setTab] = useState<"received" | "sent">("received");
-  const [sent, setSent] = useState<InterestItem[]>([]);
-  const [received, setReceived] = useState<InterestItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const sentQuery = useSentInterests();
+  const receivedQuery = useReceivedInterests();
+  const interestAction = useInterestAction();
 
-  async function loadData() {
+  async function handleInterestAction(interestId: string, action: InterestAction) {
+    setPendingAction({ interestId, action });
+
     try {
-      const [sentData, receivedData] = await Promise.all([
-        listSentInterests(),
-        listReceivedInterests(),
-      ]);
-
-      setSent(sentData);
-      setReceived(receivedData);
-      setError("");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to load interests";
-      setError(msg);
+      const result = await interestAction.mutate(interestId, action);
+      if (result) {
+        receivedQuery.reload();
+        sentQuery.reload();
+      }
     } finally {
-      setLoading(false);
+      setPendingAction(null);
     }
   }
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
+  const sent = sentQuery.interests;
+  const received = receivedQuery.interests;
   const items = tab === "received" ? received : sent;
+  const loading = sentQuery.loading || receivedQuery.loading;
+  const listError = tab === "received" ? receivedQuery.error : sentQuery.error;
+  const error = interestAction.error || listError;
 
   if (loading) {
     return <div className="card p-6 text-sm text-stone-600">Loading interests...</div>;
@@ -131,12 +137,40 @@ export function InterestsClient() {
                 </p>
 
                 <div className="mt-5">
-                  <Link
-                    href={`/browse/${item.profile_id}`}
-                    className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
-                  >
-                    View profile
-                  </Link>
+                  <div className="flex flex-wrap gap-3">
+                    <Link
+                      href={`/browse/${item.profile_id}`}
+                      className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800"
+                    >
+                      View profile
+                    </Link>
+
+                    {tab === "received" && item.status === "sent" ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => handleInterestAction(item.id, "accept")}
+                          disabled={interestAction.loading}
+                          className="rounded-xl bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {pendingAction?.interestId === item.id && pendingAction.action === "accept"
+                            ? "Accepting..."
+                            : "Accept"}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleInterestAction(item.id, "decline")}
+                          disabled={interestAction.loading}
+                          className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {pendingAction?.interestId === item.id && pendingAction.action === "decline"
+                            ? "Declining..."
+                            : "Decline"}
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
               </div>
             </div>
