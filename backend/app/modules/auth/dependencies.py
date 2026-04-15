@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.security import (
     SupabaseAuthConfigurationError,
     SupabaseTokenVerificationError,
@@ -27,6 +28,28 @@ def get_current_user(
 ) -> User:
     claims = _verify_supabase_credentials(credentials, missing_detail="Authentication required")
     return _resolve_user_from_supabase_claims(db, claims)
+
+
+def get_current_admin_user(
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> User:
+    if not _is_admin_email(current_user.email):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
+    return current_user
+
+
+def _is_admin_email(email: str) -> bool:
+    normalized_email = email.strip().lower()
+    admin_emails = {
+        admin_email.strip().lower()
+        for admin_email in settings.admin_email_allowlist
+        if admin_email.strip()
+    }
+    return normalized_email in admin_emails
 
 
 def _verify_supabase_credentials(

@@ -13,7 +13,7 @@ from pydantic_settings import (
 )
 
 
-def _parse_cors_origins(value: Any) -> Any:
+def _parse_string_list(value: Any) -> Any:
     if not isinstance(value, str):
         return value
 
@@ -21,7 +21,7 @@ def _parse_cors_origins(value: Any) -> Any:
     if not raw_value:
         return []
 
-    # Accept a single URL or comma-separated URLs from `.env` without requiring JSON syntax.
+    # Accept a single value or comma-separated values from `.env` without requiring JSON syntax.
     try:
         parsed_value = json.loads(raw_value)
     except JSONDecodeError:
@@ -38,16 +38,16 @@ def _parse_cors_origins(value: Any) -> Any:
 
 class FlexibleEnvSettingsSource(EnvSettingsSource):
     def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
-        if field_name == "backend_cors_origins":
-            return _parse_cors_origins(value)
+        if field_name in {"backend_cors_origins", "admin_email_allowlist"}:
+            return _parse_string_list(value)
 
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class FlexibleDotEnvSettingsSource(DotEnvSettingsSource):
     def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
-        if field_name == "backend_cors_origins":
-            return _parse_cors_origins(value)
+        if field_name in {"backend_cors_origins", "admin_email_allowlist"}:
+            return _parse_string_list(value)
 
         return super().prepare_field_value(field_name, field, value, value_is_complex)
 
@@ -68,6 +68,7 @@ class Settings(BaseSettings):
         default_factory=lambda: ["http://localhost:3000"],
         alias="BACKEND_CORS_ORIGINS",
     )
+    admin_email_allowlist: list[str] = Field(default_factory=list, alias="ADMIN_EMAIL_ALLOWLIST")
 
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/tribal_match",
