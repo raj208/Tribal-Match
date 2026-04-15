@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "@/lib/api/client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/client";
 import type {
   InterestAction,
   InterestActionPayload,
@@ -23,4 +23,8 @@ export function listReceivedInterests() {
 export function actOnInterest(interestId: string, action: InterestAction) {
   const payload: InterestActionPayload = { action };
   return apiPatch<InterestActionResponse>(`/interests/${interestId}`, payload);
+}
+
+export function withdrawInterest(interestId: string) {
+  return apiDelete<void>(`/interests/${interestId}`);
 }

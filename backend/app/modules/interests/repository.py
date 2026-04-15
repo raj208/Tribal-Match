@@ -92,6 +92,11 @@ def update_interest(db: Session, interest: Interest, data: dict) -> Interest:
     return interest
 
 
+def delete_interest(db: Session, interest: Interest) -> None:
+    db.delete(interest)
+    db.commit()
+
+
 def list_sent_interests_for_user(db: Session, *, user_id: UUID) -> list[Interest]:
     stmt = (
         select(Interest)

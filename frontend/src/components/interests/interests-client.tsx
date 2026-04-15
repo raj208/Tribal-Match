@@ -7,6 +7,7 @@ import {
   useInterestAction,
   useReceivedInterests,
   useSentInterests,
+  useWithdrawInterest,
 } from "@/hooks/use-interests";
 import type { InterestStatus } from "@/types";
 import type { InterestAction } from "@/types/interactions";
@@ -69,9 +70,11 @@ function getStatusHelper(status: InterestStatus, tab: TabKey) {
 export function InterestsClient() {
   const [tab, setTab] = useState<TabKey>("received");
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [pendingWithdrawId, setPendingWithdrawId] = useState<string | null>(null);
   const sentQuery = useSentInterests();
   const receivedQuery = useReceivedInterests();
   const interestAction = useInterestAction();
+  const withdrawInterest = useWithdrawInterest();
 
   async function handleInterestAction(interestId: string, action: InterestAction) {
     setPendingAction({ interestId, action });
@@ -87,12 +90,26 @@ export function InterestsClient() {
     }
   }
 
+  async function handleWithdrawInterest(interestId: string) {
+    setPendingWithdrawId(interestId);
+
+    try {
+      const withdrawn = await withdrawInterest.mutate(interestId);
+      if (withdrawn) {
+        sentQuery.reload();
+        receivedQuery.reload();
+      }
+    } finally {
+      setPendingWithdrawId(null);
+    }
+  }
+
   const sent = sentQuery.interests;
   const received = receivedQuery.interests;
   const items = tab === "received" ? received : sent;
   const loading = sentQuery.loading || receivedQuery.loading;
   const listError = tab === "received" ? receivedQuery.error : sentQuery.error;
-  const error = interestAction.error || listError;
+  const error = interestAction.error || withdrawInterest.error || listError;
 
   if (loading) {
     return <div className="card p-6 text-sm text-stone-600">Loading interests...</div>;
@@ -203,7 +220,7 @@ export function InterestsClient() {
                           <button
                             type="button"
                             onClick={() => handleInterestAction(item.id, "accept")}
-                            disabled={interestAction.loading}
+                            disabled={interestAction.loading || withdrawInterest.loading}
                             className="rounded-xl bg-green-700 px-4 py-2 text-sm font-medium text-white hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {pendingAction?.interestId === item.id && pendingAction.action === "accept"
@@ -214,7 +231,7 @@ export function InterestsClient() {
                           <button
                             type="button"
                             onClick={() => handleInterestAction(item.id, "decline")}
-                            disabled={interestAction.loading}
+                            disabled={interestAction.loading || withdrawInterest.loading}
                             className="rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-50 disabled:cursor-not-allowed disabled:opacity-60"
                           >
                             {pendingAction?.interestId === item.id && pendingAction.action === "decline"
@@ -222,6 +239,17 @@ export function InterestsClient() {
                               : "Decline"}
                           </button>
                         </>
+                      ) : null}
+
+                      {tab === "sent" && item.status === "sent" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleWithdrawInterest(item.id)}
+                          disabled={interestAction.loading || withdrawInterest.loading}
+                          className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {pendingWithdrawId === item.id ? "Withdrawing..." : "Withdraw"}
+                        </button>
                       ) : null}
                     </div>
                   </div>

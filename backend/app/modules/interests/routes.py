@@ -22,6 +22,7 @@ from app.modules.interests.service import (
     list_my_shortlists,
     remove_from_shortlist,
     send_interest,
+    withdraw_interest,
 )
 from app.modules.users.models import User
 
@@ -102,3 +103,13 @@ def act_on_interest_route(
         interest_id=interest_id,
         action=payload.action,
     )
+
+
+@router.delete("/interests/{interest_id}", status_code=status.HTTP_204_NO_CONTENT)
+def withdraw_interest_route(
+    interest_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> None:
+    withdraw_interest(db, current_user=current_user, interest_id=interest_id)
+    return None

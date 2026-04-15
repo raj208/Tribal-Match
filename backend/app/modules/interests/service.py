@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.modules.interests.repository import (
     create_interest,
     create_shortlist,
+    delete_interest,
     delete_shortlist,
     get_interest_by_id,
     get_interest_by_sender_receiver,
@@ -247,3 +248,26 @@ def act_on_interest(db: Session, *, current_user: User, interest_id: UUID, actio
         "id": updated_interest.id,
         "status": updated_interest.status,
     }
+
+
+def withdraw_interest(db: Session, *, current_user: User, interest_id: UUID) -> None:
+    interest = get_interest_by_id(db, interest_id=interest_id)
+    if not interest:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interest not found",
+        )
+
+    if interest.sender_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the sender can withdraw this interest",
+        )
+
+    if interest.status != InterestStatus.SENT:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Interest has already been acted on",
+        )
+
+    delete_interest(db, interest)

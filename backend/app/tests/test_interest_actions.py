@@ -86,11 +86,28 @@ def test_patch_interest_requires_auth(client) -> None:
     assert response.json() == {"detail": "Authentication required"}
 
 
+def test_delete_interest_requires_auth(client) -> None:
+    response = client.delete(f"{INTERESTS_PATH}/{uuid4()}")
+
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required"}
+
+
 def test_patch_interest_returns_404_when_interest_is_missing(client) -> None:
     response = client.patch(
         f"{INTERESTS_PATH}/{uuid4()}",
         headers=_auth_headers("missing-interest@example.com"),
         json={"action": "accept"},
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Interest not found"}
+
+
+def test_delete_interest_returns_404_when_interest_is_missing(client) -> None:
+    response = client.delete(
+        f"{INTERESTS_PATH}/{uuid4()}",
+        headers=_auth_headers("missing-withdraw@example.com"),
     )
 
     assert response.status_code == 404
@@ -137,6 +154,43 @@ def test_patch_interest_updates_status_for_receiver(
     refreshed_interest = db_session.get(Interest, interest.id)
     assert refreshed_interest is not None
     assert refreshed_interest.status == expected_status
+
+
+def test_delete_interest_withdraws_pending_interest_for_sender(client, db_session: Session) -> None:
+    sender = _create_user(db_session, "sender-withdraw@example.com")
+    receiver = _create_user(db_session, "receiver-withdraw@example.com")
+    sender_profile = _create_profile(db_session, user=sender, full_name="Sender User")
+    receiver_profile = _create_profile(db_session, user=receiver, full_name="Receiver User")
+    interest = _create_interest(
+        db_session,
+        sender_user=sender,
+        receiver_user=receiver,
+        sender_profile=sender_profile,
+        receiver_profile=receiver_profile,
+    )
+
+    response = client.delete(
+        f"{INTERESTS_PATH}/{interest.id}",
+        headers=_auth_headers(sender.email),
+    )
+
+    assert response.status_code == 204
+    assert response.content == b""
+    assert db_session.get(Interest, interest.id) is None
+
+    sent_response = client.get(
+        f"{INTERESTS_PATH}/sent",
+        headers=_auth_headers(sender.email),
+    )
+    received_response = client.get(
+        f"{INTERESTS_PATH}/received",
+        headers=_auth_headers(receiver.email),
+    )
+
+    assert sent_response.status_code == 200
+    assert received_response.status_code == 200
+    assert sent_response.json() == []
+    assert received_response.json() == []
 
 
 @pytest.mark.parametrize(
@@ -223,6 +277,32 @@ def test_patch_interest_forbids_sender_from_acting_on_sent_interest(client, db_s
     assert refreshed_interest.status == InterestStatus.SENT
 
 
+def test_delete_interest_forbids_receiver_from_withdrawing_sent_interest(client, db_session: Session) -> None:
+    sender = _create_user(db_session, "sender-receiver-withdraw@example.com")
+    receiver = _create_user(db_session, "receiver-receiver-withdraw@example.com")
+    sender_profile = _create_profile(db_session, user=sender, full_name="Sender User")
+    receiver_profile = _create_profile(db_session, user=receiver, full_name="Receiver User")
+    interest = _create_interest(
+        db_session,
+        sender_user=sender,
+        receiver_user=receiver,
+        sender_profile=sender_profile,
+        receiver_profile=receiver_profile,
+    )
+
+    response = client.delete(
+        f"{INTERESTS_PATH}/{interest.id}",
+        headers=_auth_headers(receiver.email),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Only the sender can withdraw this interest"}
+
+    refreshed_interest = db_session.get(Interest, interest.id)
+    assert refreshed_interest is not None
+    assert refreshed_interest.status == InterestStatus.SENT
+
+
 def test_patch_interest_returns_409_when_interest_was_already_acted_on(client, db_session: Session) -> None:
     sender = _create_user(db_session, "sender-processed-interest@example.com")
     receiver = _create_user(db_session, "receiver-processed-interest@example.com")
@@ -241,6 +321,33 @@ def test_patch_interest_returns_409_when_interest_was_already_acted_on(client, d
         f"{INTERESTS_PATH}/{interest.id}",
         headers=_auth_headers(receiver.email),
         json={"action": "decline"},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Interest has already been acted on"}
+
+    refreshed_interest = db_session.get(Interest, interest.id)
+    assert refreshed_interest is not None
+    assert refreshed_interest.status == InterestStatus.ACCEPTED
+
+
+def test_delete_interest_returns_409_when_interest_was_already_acted_on(client, db_session: Session) -> None:
+    sender = _create_user(db_session, "sender-processed-withdraw@example.com")
+    receiver = _create_user(db_session, "receiver-processed-withdraw@example.com")
+    sender_profile = _create_profile(db_session, user=sender, full_name="Sender User")
+    receiver_profile = _create_profile(db_session, user=receiver, full_name="Receiver User")
+    interest = _create_interest(
+        db_session,
+        sender_user=sender,
+        receiver_user=receiver,
+        sender_profile=sender_profile,
+        receiver_profile=receiver_profile,
+        status=InterestStatus.ACCEPTED,
+    )
+
+    response = client.delete(
+        f"{INTERESTS_PATH}/{interest.id}",
+        headers=_auth_headers(sender.email),
     )
 
     assert response.status_code == 409

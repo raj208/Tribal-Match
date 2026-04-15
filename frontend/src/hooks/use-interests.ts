@@ -7,6 +7,7 @@ import {
   actOnInterest,
   listReceivedInterests,
   listSentInterests,
+  withdrawInterest,
 } from "@/lib/api/interests";
 import type {
   InterestAction,
@@ -23,6 +24,13 @@ type InterestListQueryResult = {
 
 type InterestActionMutationResult = {
   mutate: (interestId: string, action: InterestAction) => Promise<InterestActionResponse | null>;
+  loading: boolean;
+  error: string;
+  reset: () => void;
+};
+
+type InterestWithdrawMutationResult = {
+  mutate: (interestId: string) => Promise<boolean>;
   loading: boolean;
   error: string;
   reset: () => void;
@@ -122,6 +130,33 @@ export function useInterestAction(): InterestActionMutationResult {
     } catch (err: unknown) {
       setError(toApiErrorMessage(err, "Unable to update interest"));
       return null;
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return {
+    mutate,
+    loading,
+    error,
+    reset: () => setError(""),
+  };
+}
+
+export function useWithdrawInterest(): InterestWithdrawMutationResult {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function mutate(interestId: string) {
+    setLoading(true);
+    setError("");
+
+    try {
+      await withdrawInterest(interestId);
+      return true;
+    } catch (err: unknown) {
+      setError(toApiErrorMessage(err, "Unable to withdraw interest"));
+      return false;
     } finally {
       setLoading(false);
     }
