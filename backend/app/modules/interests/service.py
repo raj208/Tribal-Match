@@ -8,17 +8,24 @@ from app.modules.interests.repository import (
     create_interest,
     create_shortlist,
     delete_shortlist,
+    get_interest_by_id,
     get_interest_by_sender_receiver,
     get_shortlist_by_id_for_user,
     get_shortlist_by_user_and_profile,
     list_received_interests_for_user,
     list_sent_interests_for_user,
     list_shortlists_for_user,
+    update_interest,
 )
 from app.modules.moderation.repository import is_blocked_between
 from app.modules.profiles.models import Profile
 from app.modules.users.models import User
 from app.shared.enums import InterestStatus, ProfileStatus
+
+INTEREST_ACTION_TO_STATUS = {
+    "accept": InterestStatus.ACCEPTED,
+    "decline": InterestStatus.DECLINED,
+}
 
 
 def _get_primary_photo_url(profile) -> str | None:
@@ -199,3 +206,44 @@ def list_my_sent_interests(db: Session, *, current_user: User) -> list[dict]:
 def list_my_received_interests(db: Session, *, current_user: User) -> list[dict]:
     items = list_received_interests_for_user(db, user_id=current_user.id)
     return [_serialize_interest_item(item, direction="received") for item in items]
+
+
+def act_on_interest(db: Session, *, current_user: User, interest_id: UUID, action: str) -> dict:
+    interest = get_interest_by_id(db, interest_id=interest_id)
+    if not interest:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Interest not found",
+        )
+
+    if interest.receiver_user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the receiver can act on this interest",
+        )
+
+    if is_blocked_between(
+        db,
+        user_a_id=current_user.id,
+        user_b_id=interest.sender_user_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Interaction unavailable for this profile",
+        )
+
+    if interest.status != InterestStatus.SENT:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Interest has already been acted on",
+        )
+
+    updated_interest = update_interest(
+        db,
+        interest,
+        {"status": INTEREST_ACTION_TO_STATUS[action]},
+    )
+    return {
+        "id": updated_interest.id,
+        "status": updated_interest.status,
+    }

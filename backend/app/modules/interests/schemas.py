@@ -1,5 +1,5 @@
-# Schemas for the interests module will be added in later steps.
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -45,3 +45,12 @@ class InterestListItem(BaseModel):
     status: InterestStatus
     direction: str
     created_at: datetime
+
+
+class InterestActionRequest(BaseModel):
+    action: Literal["accept", "decline"]
+
+
+class InterestActionResponse(BaseModel):
+    id: UUID
+    status: InterestStatus

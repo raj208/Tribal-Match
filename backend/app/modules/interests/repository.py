@@ -1,4 +1,3 @@
-# Repository logic for the interests module will be added in later steps.
 from uuid import UUID
 
 from sqlalchemy import select
@@ -76,6 +75,21 @@ def create_interest(db: Session, data: dict) -> Interest:
     db.commit()
     db.refresh(item)
     return item
+
+
+def get_interest_by_id(db: Session, *, interest_id: UUID) -> Interest | None:
+    stmt = select(Interest).where(Interest.id == interest_id)
+    return db.scalar(stmt)
+
+
+def update_interest(db: Session, interest: Interest, data: dict) -> Interest:
+    for key, value in data.items():
+        setattr(interest, key, value)
+
+    db.add(interest)
+    db.commit()
+    db.refresh(interest)
+    return interest
 
 
 def list_sent_interests_for_user(db: Session, *, user_id: UUID) -> list[Interest]:

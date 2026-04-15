@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
 from app.modules.interests.schemas import (
+    InterestActionRequest,
+    InterestActionResponse,
     InterestCreate,
     InterestListItem,
     ShortlistCreate,
     ShortlistItem,
 )
 from app.modules.interests.service import (
+    act_on_interest,
     add_to_shortlist,
     list_my_received_interests,
     list_my_sent_interests,
@@ -84,3 +87,18 @@ def list_received_interests_route(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> list[InterestListItem]:
     return list_my_received_interests(db, current_user=current_user)
+
+
+@router.patch("/interests/{interest_id}", response_model=InterestActionResponse)
+def act_on_interest_route(
+    interest_id: UUID,
+    payload: InterestActionRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> InterestActionResponse:
+    return act_on_interest(
+        db,
+        current_user=current_user,
+        interest_id=interest_id,
+        action=payload.action,
+    )
