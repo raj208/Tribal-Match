@@ -139,6 +139,63 @@ def test_patch_interest_updates_status_for_receiver(
     assert refreshed_interest.status == expected_status
 
 
+@pytest.mark.parametrize(
+    ("action", "expected_status"),
+    [
+        ("accept", InterestStatus.ACCEPTED),
+        ("decline", InterestStatus.DECLINED),
+    ],
+)
+def test_interest_lists_return_updated_status_after_action(
+    client,
+    db_session: Session,
+    action: str,
+    expected_status: InterestStatus,
+) -> None:
+    sender = _create_user(db_session, f"sender-list-{action}@example.com")
+    receiver = _create_user(db_session, f"receiver-list-{action}@example.com")
+    sender_profile = _create_profile(db_session, user=sender, full_name="Sender User")
+    receiver_profile = _create_profile(db_session, user=receiver, full_name="Receiver User")
+    interest = _create_interest(
+        db_session,
+        sender_user=sender,
+        receiver_user=receiver,
+        sender_profile=sender_profile,
+        receiver_profile=receiver_profile,
+    )
+
+    action_response = client.patch(
+        f"{INTERESTS_PATH}/{interest.id}",
+        headers=_auth_headers(receiver.email),
+        json={"action": action},
+    )
+    assert action_response.status_code == 200
+
+    sent_response = client.get(
+        f"{INTERESTS_PATH}/sent",
+        headers=_auth_headers(sender.email),
+    )
+    received_response = client.get(
+        f"{INTERESTS_PATH}/received",
+        headers=_auth_headers(receiver.email),
+    )
+
+    assert sent_response.status_code == 200
+    assert received_response.status_code == 200
+
+    sent_body = sent_response.json()
+    received_body = received_response.json()
+
+    assert len(sent_body) == 1
+    assert len(received_body) == 1
+    assert sent_body[0]["id"] == str(interest.id)
+    assert sent_body[0]["status"] == expected_status.value
+    assert sent_body[0]["direction"] == "sent"
+    assert received_body[0]["id"] == str(interest.id)
+    assert received_body[0]["status"] == expected_status.value
+    assert received_body[0]["direction"] == "received"
+
+
 def test_patch_interest_forbids_sender_from_acting_on_sent_interest(client, db_session: Session) -> None:
     sender = _create_user(db_session, "sender-own-interest@example.com")
     receiver = _create_user(db_session, "receiver-own-interest@example.com")
