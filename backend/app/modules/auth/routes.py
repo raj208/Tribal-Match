@@ -17,9 +17,10 @@ def auth_health() -> dict[str, str]:
 @router.get("/me")
 def auth_me(
     current_user: Annotated[User, Depends(get_current_user)],
-) -> dict[str, str]:
+) -> dict[str, str | None]:
     return {
         "id": str(current_user.id),
+        "supabase_user_id": current_user.supabase_user_id,
         "email": current_user.email,
         "role": current_user.role,
         "account_status": current_user.account_status,

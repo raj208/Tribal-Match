@@ -13,6 +13,7 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    supabase_user_id: Mapped[str | None] = mapped_column(String(64), unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     phone: Mapped[str | None] = mapped_column(String(32), unique=True, nullable=True)
     auth_provider: Mapped[str] = mapped_column(String(32), default="supabase", nullable=False)
