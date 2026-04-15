@@ -14,7 +14,7 @@ INTERESTS_PATH = f"{settings.api_v1_prefix}/interests"
 
 
 def _auth_headers(email: str) -> dict[str, str]:
-    return {"X-User-Email": email}
+    return {"Authorization": f"Bearer test-token:{email}"}
 
 
 def _create_user(db: Session, email: str) -> User:
@@ -151,6 +151,7 @@ def test_patch_interest_updates_status_for_receiver(
         "status": expected_status.value,
     }
 
+    db_session.expire_all()
     refreshed_interest = db_session.get(Interest, interest.id)
     assert refreshed_interest is not None
     assert refreshed_interest.status == expected_status
@@ -168,15 +169,17 @@ def test_delete_interest_withdraws_pending_interest_for_sender(client, db_sessio
         sender_profile=sender_profile,
         receiver_profile=receiver_profile,
     )
+    interest_id = interest.id
 
     response = client.delete(
-        f"{INTERESTS_PATH}/{interest.id}",
+        f"{INTERESTS_PATH}/{interest_id}",
         headers=_auth_headers(sender.email),
     )
 
     assert response.status_code == 204
     assert response.content == b""
-    assert db_session.get(Interest, interest.id) is None
+    db_session.expire_all()
+    assert db_session.get(Interest, interest_id) is None
 
     sent_response = client.get(
         f"{INTERESTS_PATH}/sent",

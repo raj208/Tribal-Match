@@ -9,7 +9,7 @@ SETTINGS_ME_PATH = f"{settings.api_v1_prefix}/settings/me"
 
 
 def _auth_headers(email: str) -> dict[str, str]:
-    return {"X-User-Email": email}
+    return {"Authorization": f"Bearer test-token:{email}"}
 
 
 def _create_user(db: Session, email: str) -> User:
@@ -145,6 +145,7 @@ def test_patch_settings_me_updates_profile_visibility_and_returns_summary(client
         "completion_percentage": 90,
     }
 
+    db_session.expire_all()
     refreshed_profile = db_session.get(Profile, profile.id)
     assert refreshed_profile is not None
     assert refreshed_profile.profile_visibility == "private"

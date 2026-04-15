@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
@@ -24,38 +24,19 @@ bearer_scheme = HTTPBearer(auto_error=False)
 def get_current_user(
     db: Annotated[Session, Depends(get_db)],
     credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer_scheme)] = None,
-    x_user_email: Annotated[str | None, Header()] = None,
 ) -> User:
-    if credentials is not None and credentials.scheme.lower() == "bearer":
-        claims = _verify_supabase_credentials(credentials)
-        return _resolve_user_from_supabase_claims(db, claims)
-
-    return _resolve_user_from_bridge_header(db, x_user_email)
-
-
-def _resolve_user_from_bridge_header(db: Session, x_user_email: str | None) -> User:
-    if not x_user_email or not x_user_email.strip():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-        )
-
-    email = x_user_email.strip().lower()
-
-    user = get_user_by_email(db, email)
-    if user:
-        return user
-
-    return create_user(db, email)
+    claims = _verify_supabase_credentials(credentials, missing_detail="Authentication required")
+    return _resolve_user_from_supabase_claims(db, claims)
 
 
 def _verify_supabase_credentials(
     credentials: HTTPAuthorizationCredentials | None,
+    missing_detail: str = "Bearer token required",
 ) -> dict[str, object]:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Bearer token required",
+            detail=missing_detail,
             headers={"WWW-Authenticate": "Bearer"},
         )
 
@@ -63,7 +44,7 @@ def _verify_supabase_credentials(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Bearer token required",
+            detail=missing_detail,
             headers={"WWW-Authenticate": "Bearer"},
         )
 

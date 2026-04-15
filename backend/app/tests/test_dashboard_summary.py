@@ -13,7 +13,7 @@ DASHBOARD_SUMMARY_PATH = f"{settings.api_v1_prefix}/dashboard/summary"
 
 
 def _auth_headers(email: str) -> dict[str, str]:
-    return {"X-User-Email": email}
+    return {"Authorization": f"Bearer test-token:{email}"}
 
 
 def _create_user(db: Session, email: str) -> User:

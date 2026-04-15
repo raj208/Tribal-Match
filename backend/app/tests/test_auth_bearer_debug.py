@@ -104,14 +104,27 @@ def test_auth_debug_me_rejects_invalid_bearer_token(client, monkeypatch) -> None
     assert response.json() == {"detail": "Invalid or expired bearer token"}
 
 
-def test_auth_me_still_uses_existing_bridge_header(client) -> None:
+def test_auth_me_rejects_bridge_header_without_bearer_token(client) -> None:
     response = client.get(
         AUTH_ME_PATH,
         headers={"X-User-Email": "bridge@example.com"},
     )
 
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Authentication required"}
+
+
+def test_auth_me_uses_verified_bearer_token(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_verified_token(monkeypatch, _verified_claims())
+
+    response = client.get(
+        AUTH_ME_PATH,
+        headers={"Authorization": "Bearer valid-token"},
+    )
+
     assert response.status_code == 200
-    assert response.json()["email"] == "bridge@example.com"
+    assert response.json()["supabase_user_id"] == "supabase-user-id"
+    assert response.json()["email"] == "token-user@example.com"
 
 
 def test_auth_me_prefers_verified_supabase_identity_over_bridge_header(

@@ -9,7 +9,7 @@ SETTINGS_DEACTIVATE_PATH = f"{settings.api_v1_prefix}/settings/deactivate"
 
 
 def _auth_headers(email: str) -> dict[str, str]:
-    return {"X-User-Email": email}
+    return {"Authorization": f"Bearer test-token:{email}"}
 
 
 def _create_user(db: Session, email: str) -> User:
@@ -82,6 +82,7 @@ def test_settings_deactivate_sets_profile_status_to_deactivated(client, db_sessi
         "message": "Profile deactivated successfully.",
     }
 
+    db_session.expire_all()
     refreshed_profile = db_session.get(Profile, profile.id)
     assert refreshed_profile is not None
     assert refreshed_profile.profile_status == ProfileStatus.DEACTIVATED
