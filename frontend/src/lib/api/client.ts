@@ -30,10 +30,6 @@ async function buildHeaders(body?: unknown) {
     headers.set("Authorization", `Bearer ${session.access_token}`);
   }
 
-  if (session?.user?.email) {
-    headers.set("X-User-Email", session.user.email);
-  }
-
   return headers;
 }
 
