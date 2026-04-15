@@ -40,19 +40,12 @@ def _stub_verified_token(monkeypatch: pytest.MonkeyPatch, claims: dict[str, obje
     )
 
 
-def _get_user_by_email(db: Session, email: str) -> User | None:
-    return db.scalar(select(User).where(User.email == email))
-
-
 def _get_user_by_supabase_user_id(db: Session, supabase_user_id: str) -> User | None:
     return db.scalar(select(User).where(User.supabase_user_id == supabase_user_id))
 
 
-def test_auth_debug_me_requires_bearer_token_even_with_bridge_header(client) -> None:
-    response = client.get(
-        AUTH_DEBUG_ME_PATH,
-        headers={"X-User-Email": "bridge@example.com"},
-    )
+def test_auth_debug_me_requires_bearer_token(client) -> None:
+    response = client.get(AUTH_DEBUG_ME_PATH)
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Bearer token required"}
@@ -63,10 +56,7 @@ def test_auth_debug_me_returns_verified_token_identity(client, monkeypatch) -> N
 
     response = client.get(
         AUTH_DEBUG_ME_PATH,
-        headers={
-            "Authorization": "Bearer valid-token",
-            "X-User-Email": "bridge@example.com",
-        },
+        headers={"Authorization": "Bearer valid-token"},
     )
 
     assert response.status_code == 200
@@ -104,11 +94,8 @@ def test_auth_debug_me_rejects_invalid_bearer_token(client, monkeypatch) -> None
     assert response.json() == {"detail": "Invalid or expired bearer token"}
 
 
-def test_auth_me_rejects_bridge_header_without_bearer_token(client) -> None:
-    response = client.get(
-        AUTH_ME_PATH,
-        headers={"X-User-Email": "bridge@example.com"},
-    )
+def test_auth_me_requires_bearer_token(client) -> None:
+    response = client.get(AUTH_ME_PATH)
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Authentication required"}
@@ -123,11 +110,12 @@ def test_auth_me_uses_verified_bearer_token(client, monkeypatch: pytest.MonkeyPa
     )
 
     assert response.status_code == 200
+    assert response.json()["auth_source"] == "supabase_bearer"
     assert response.json()["supabase_user_id"] == "supabase-user-id"
     assert response.json()["email"] == "token-user@example.com"
 
 
-def test_auth_me_prefers_verified_supabase_identity_over_bridge_header(
+def test_auth_me_returns_existing_user_by_supabase_identity(
     client,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
@@ -140,15 +128,12 @@ def test_auth_me_prefers_verified_supabase_identity_over_bridge_header(
 
     response = client.get(
         AUTH_ME_PATH,
-        headers={
-            "Authorization": "Bearer valid-token",
-            "X-User-Email": "bridge@example.com",
-        },
+        headers={"Authorization": "Bearer valid-token"},
     )
 
     assert response.status_code == 200
+    assert response.json()["auth_source"] == "supabase_bearer"
     assert response.json()["email"] == "token-user@example.com"
-    assert _get_user_by_email(db_session, "bridge@example.com") is None
 
 
 def test_auth_me_links_existing_email_user_to_supabase_identity(
@@ -202,9 +187,8 @@ def test_auth_me_creates_user_from_verified_supabase_identity(
     assert user.email == "created-token-user@example.com"
 
 
-def test_auth_me_rejects_invalid_bearer_token_even_with_bridge_header(
+def test_auth_me_rejects_invalid_bearer_token(
     client,
-    db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fake_verify_supabase_access_token(_: str) -> dict[str, object]:
@@ -217,15 +201,11 @@ def test_auth_me_rejects_invalid_bearer_token_even_with_bridge_header(
 
     response = client.get(
         AUTH_ME_PATH,
-        headers={
-            "Authorization": "Bearer invalid-token",
-            "X-User-Email": "bridge@example.com",
-        },
+        headers={"Authorization": "Bearer invalid-token"},
     )
 
     assert response.status_code == 401
     assert response.json() == {"detail": "Invalid or expired bearer token"}
-    assert _get_user_by_email(db_session, "bridge@example.com") is None
 
 
 def test_verify_supabase_access_token_validates_hs256_signature() -> None:

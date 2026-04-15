@@ -50,8 +50,7 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   });
 
   if (!res.ok) {
-    const txt = await res.text();
-    throw new Error(txt || `Request failed with status ${res.status}`);
+    throw new Error(await getErrorMessage(res));
   }
 
   if (res.status === 204) {
@@ -59,6 +58,26 @@ async function apiRequest<T>(path: string, options: RequestOptions = {}): Promis
   }
 
   return res.json() as Promise<T>;
+}
+
+async function getErrorMessage(res: Response): Promise<string> {
+  const fallback = `Request failed with status ${res.status}`;
+  const txt = await res.text();
+
+  if (!txt) {
+    return fallback;
+  }
+
+  try {
+    const parsed = JSON.parse(txt) as { detail?: unknown };
+    if (typeof parsed.detail === "string" && parsed.detail.trim()) {
+      return parsed.detail;
+    }
+  } catch {
+    // Keep non-JSON responses readable as-is.
+  }
+
+  return txt || fallback;
 }
 
 export function apiGet<T>(path: string) {

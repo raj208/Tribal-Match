@@ -19,6 +19,7 @@ def auth_me(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> dict[str, str | None]:
     return {
+        "auth_source": "supabase_bearer",
         "id": str(current_user.id),
         "supabase_user_id": current_user.supabase_user_id,
         "email": current_user.email,
