@@ -150,6 +150,13 @@ def review_admin_verification_item(
             detail="Verification item not found",
         )
 
+    current_status = _coerce_verification_status(record.intro_video.verification_status)
+    if current_status not in _REVIEW_QUEUE_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Verification item is not pending review",
+        )
+
     moderation_notes = _resolve_review_moderation_notes(
         current_notes=record.intro_video.moderation_notes,
         next_status=next_status,
@@ -171,6 +178,13 @@ def review_admin_verification_item(
     )
 
     return _build_admin_verification_detail(updated_intro_video, updated_profile, record.user)
+
+
+def _coerce_verification_status(value: VerificationStatus | str) -> VerificationStatus:
+    if isinstance(value, VerificationStatus):
+        return value
+
+    return VerificationStatus(str(value))
 
 
 def _resolve_review_moderation_notes(

@@ -62,6 +62,20 @@ export function AdminModerationDashboard() {
   const pendingVerificationCount = pendingVerification.error
     ? "-"
     : String(pendingVerification.items.length);
+  const openReportsHelper = openReports.loading
+    ? "Fetching current report volume."
+    : openReports.error
+    ? "Unable to load the current report count."
+    : openReports.reports.length === 0
+    ? "No open reports need moderator attention right now."
+    : "Reports that still need moderator attention.";
+  const pendingVerificationHelper = pendingVerification.loading
+    ? "Fetching current verification volume."
+    : pendingVerification.error
+    ? "Unable to load the current verification count."
+    : pendingVerification.items.length === 0
+    ? "No intro videos are waiting for review right now."
+    : "Intro videos waiting for approval or rejection.";
 
   return (
     <div className="space-y-5">
@@ -81,7 +95,7 @@ export function AdminModerationDashboard() {
         <SummaryCard
           title="Open Reports"
           value={openReports.loading ? "..." : openReportsCount}
-          helper="Reports that still need moderator attention."
+          helper={openReportsHelper}
           active={tab === "reports"}
           onClick={() => setTab("reports")}
           icon={<FileWarning className="h-5 w-5" aria-hidden="true" />}
@@ -89,7 +103,7 @@ export function AdminModerationDashboard() {
         <SummaryCard
           title="Pending Verification"
           value={pendingVerification.loading ? "..." : pendingVerificationCount}
-          helper="Intro videos waiting for approval or rejection."
+          helper={pendingVerificationHelper}
           active={tab === "verification"}
           onClick={() => setTab("verification")}
           icon={<Video className="h-5 w-5" aria-hidden="true" />}

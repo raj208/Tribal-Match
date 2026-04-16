@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   ExternalLink,
   Eye,
+  ShieldAlert,
   RefreshCw,
   ShieldCheck,
   XCircle,
@@ -16,57 +17,20 @@ import {
   useAdminVerificationQueue,
   useReviewAdminVerification,
 } from "@/hooks/use-admin-verifications";
+import {
+  formatModerationDate,
+  formatModerationLabel,
+  getProfileStatusMeta,
+  getVerificationStatusMeta,
+  isHiddenProfile,
+} from "@/lib/admin-moderation-display";
 import type { VerificationStatus } from "@/types";
 import type {
   AdminVerificationDetail,
+  AdminVerificationProfileSummary,
   AdminVerificationQueueItem,
   AdminVerificationUserSummary,
 } from "@/types/admin-verification";
-
-const STATUS_META: Record<
-  VerificationStatus,
-  {
-    label: string;
-    badgeClass: string;
-  }
-> = {
-  not_started: {
-    label: "Not Started",
-    badgeClass: "bg-stone-100 text-stone-700",
-  },
-  uploaded: {
-    label: "Uploaded",
-    badgeClass: "bg-amber-100 text-amber-800",
-  },
-  under_review: {
-    label: "Under Review",
-    badgeClass: "bg-sky-100 text-sky-800",
-  },
-  approved: {
-    label: "Approved",
-    badgeClass: "bg-green-100 text-green-700",
-  },
-  rejected: {
-    label: "Rejected",
-    badgeClass: "bg-red-100 text-red-700",
-  },
-};
-
-function formatLabel(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
 
 function getUserLabel(user: AdminVerificationUserSummary) {
   return user.email || user.id;
@@ -77,7 +41,17 @@ function VerificationStatusBadge({
 }: {
   status: VerificationStatus;
 }) {
-  const meta = STATUS_META[status];
+  const meta = getVerificationStatusMeta(status);
+  return <span className={`soft-badge ${meta.badgeClass}`}>{meta.label}</span>;
+}
+
+function ProfileStatusBadge({
+  profileStatus,
+}: {
+  profileStatus: AdminVerificationProfileSummary["profile_status"];
+}) {
+  const meta = getProfileStatusMeta(profileStatus);
+
   return <span className={`soft-badge ${meta.badgeClass}`}>{meta.label}</span>;
 }
 
@@ -137,6 +111,26 @@ function QueueSkeleton() {
   );
 }
 
+function EmptyStateCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="card p-6">
+      <div className="flex items-start gap-3">
+        <ShieldAlert className="mt-1 h-5 w-5 text-stone-500" aria-hidden="true" />
+        <div>
+          <h3 className="text-lg font-semibold text-stone-900">{title}</h3>
+          <p className="mt-2 text-sm text-stone-600">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function VerificationQueueRow({
   item,
   selected,
@@ -161,12 +155,15 @@ function VerificationQueueRow({
               {item.profile.full_name}
             </p>
             <VerificationStatusBadge status={item.verification_status} />
+            {isHiddenProfile(item.profile.profile_status) ? (
+              <ProfileStatusBadge profileStatus={item.profile.profile_status} />
+            ) : null}
           </div>
           <p className="mt-2 truncate text-sm text-stone-700">
             {item.user.email}
           </p>
           <p className="mt-1 text-xs text-stone-500">
-            Uploaded {formatDate(item.created_at)}
+            Uploaded {formatModerationDate(item.created_at)}
           </p>
         </div>
 
@@ -292,7 +289,10 @@ function VerificationDetailPanel({
             {item.profile.full_name}
           </h3>
           <p className="mt-1 text-sm text-stone-600">
-            Uploaded {formatDate(item.created_at)}
+            Uploaded {formatModerationDate(item.created_at)}
+          </p>
+          <p className="mt-1 text-sm text-stone-500">
+            Updated {formatModerationDate(item.updated_at)}
           </p>
         </div>
         <VerificationStatusBadge status={item.verification_status} />
@@ -324,7 +324,7 @@ function VerificationDetailPanel({
           Duration {item.duration_seconds ? `${item.duration_seconds}s` : "Unknown"}
         </span>
         <span className="soft-badge bg-stone-100 text-stone-700">
-          Upload {formatLabel(item.upload_status)}
+          Upload {formatModerationLabel(item.upload_status)}
         </span>
       </div>
 
@@ -344,11 +344,12 @@ function VerificationDetailPanel({
       <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <VerificationStatusBadge status={item.profile.verification_status} />
-          <span className="soft-badge bg-stone-200 text-stone-700">
-            {formatLabel(item.profile.profile_status)}
-          </span>
+          <ProfileStatusBadge profileStatus={item.profile.profile_status} />
         </div>
         <p className="mt-2 text-sm text-stone-600">
+          {getProfileStatusMeta(item.profile.profile_status).helper}
+        </p>
+        <p className="mt-1 text-sm text-stone-500">
           Profile verification state mirrors the intro video review decision.
         </p>
       </div>
@@ -462,14 +463,10 @@ export function AdminVerificationQueue({
                 onRetry={queueQuery.reload}
               />
             ) : queueQuery.items.length === 0 ? (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-stone-900">
-                  No pending verification items
-                </h3>
-                <p className="mt-2 text-sm text-stone-600">
-                  Uploaded intro videos that need review will appear here.
-                </p>
-              </div>
+              <EmptyStateCard
+                title="No pending verification items"
+                description="Uploaded or under-review intro videos will appear here when they need moderation."
+              />
             ) : (
               <div className="card overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b border-stone-200 p-5">

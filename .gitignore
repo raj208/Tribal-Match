@@ -2,6 +2,7 @@
 node_modules/
 .next/
 out/
+.tmp-admin-tests/
 
 # Python
 __pycache__/
@@ -41,4 +42,3 @@ id_ed25519_work.pub
 backend/storage
 
 *.cpp
-

@@ -70,6 +70,29 @@ def test_admin_hide_profile_requires_admin(
     assert response.json() == {"detail": "Admin access required"}
 
 
+def test_admin_unhide_profile_requires_admin(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    target_user = _create_user(db_session, "target-unhide@example.com")
+    target_profile = _create_profile(
+        db_session,
+        user=target_user,
+        full_name="Target Unhide",
+        profile_status=ProfileStatus.HIDDEN,
+    )
+
+    response = client.post(
+        ADMIN_UNHIDE_PATH.format(profile_id=target_profile.id),
+        headers=_auth_headers("normal@example.com"),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Admin access required"}
+
+
 def test_admin_hide_profile_sets_hidden_and_removes_profile_from_browse_and_detail(
     client,
     db_session: Session,

@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Eye,
+  FileWarning,
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
@@ -15,10 +16,19 @@ import {
   useAdminReports,
   useUpdateAdminReportStatus,
 } from "@/hooks/use-admin-reports";
+import {
+  formatModerationDate,
+  formatModerationLabel,
+  getProfileStatusMeta,
+  getReportEmptyState,
+  getReportStatusMeta,
+  isHiddenProfile,
+} from "@/lib/admin-moderation-display";
 import type { ReportStatus } from "@/types";
 import type {
   AdminReportDetail,
   AdminReportListItem,
+  AdminReportProfileSummary,
   AdminReportUserSummary,
 } from "@/types/admin-moderation";
 
@@ -31,49 +41,22 @@ const STATUS_OPTIONS: Array<AdminReportStatusFilter> = [
 
 const UPDATE_STATUS_OPTIONS: ReportStatus[] = ["open", "reviewed", "resolved"];
 
-const STATUS_META: Record<
-  ReportStatus,
-  {
-    label: string;
-    badgeClass: string;
-  }
-> = {
-  open: {
-    label: "Open",
-    badgeClass: "bg-amber-100 text-amber-800",
-  },
-  reviewed: {
-    label: "Reviewed",
-    badgeClass: "bg-sky-100 text-sky-800",
-  },
-  resolved: {
-    label: "Resolved",
-    badgeClass: "bg-green-100 text-green-700",
-  },
-};
-
-function formatLabel(value: string) {
-  return value.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "Date unavailable";
-  }
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}
-
 function getUserLabel(user: AdminReportUserSummary) {
   return user.email || user.id;
 }
 
 function StatusBadge({ status }: { status: ReportStatus }) {
-  const meta = STATUS_META[status];
+  const meta = getReportStatusMeta(status);
+
+  return <span className={`soft-badge ${meta.badgeClass}`}>{meta.label}</span>;
+}
+
+function ProfileStatusBadge({
+  profileStatus,
+}: {
+  profileStatus: AdminReportProfileSummary["profile_status"];
+}) {
+  const meta = getProfileStatusMeta(profileStatus);
 
   return <span className={`soft-badge ${meta.badgeClass}`}>{meta.label}</span>;
 }
@@ -134,6 +117,26 @@ function QueueSkeleton() {
   );
 }
 
+function EmptyStateCard({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="card p-6">
+      <div className="flex items-start gap-3">
+        <FileWarning className="mt-1 h-5 w-5 text-stone-500" aria-hidden="true" />
+        <div>
+          <h3 className="text-lg font-semibold text-stone-900">{title}</h3>
+          <p className="mt-2 text-sm text-stone-600">{description}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ReportQueueRow({
   report,
   selected,
@@ -155,16 +158,19 @@ function ReportQueueRow({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-stone-900">
-              {formatLabel(report.reason_code)}
+              {formatModerationLabel(report.reason_code)}
             </p>
             <StatusBadge status={report.status} />
           </div>
 
-          <p className="mt-2 truncate text-sm text-stone-700">
-            {report.reported_profile.full_name}
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="truncate text-sm text-stone-700">{report.reported_profile.full_name}</p>
+            {isHiddenProfile(report.reported_profile.profile_status) ? (
+              <ProfileStatusBadge profileStatus={report.reported_profile.profile_status} />
+            ) : null}
+          </div>
           <p className="mt-1 text-xs text-stone-500">
-            Created {formatDate(report.created_at)}
+            Created {formatModerationDate(report.created_at)}
           </p>
         </div>
 
@@ -279,10 +285,13 @@ function DetailPanel({
         <div>
           <p className="text-sm text-stone-500">Report detail</p>
           <h3 className="mt-2 text-xl font-semibold text-stone-900">
-            {formatLabel(report.reason_code)}
+            {formatModerationLabel(report.reason_code)}
           </h3>
           <p className="mt-1 text-sm text-stone-600">
-            Created {formatDate(report.created_at)}
+            Created {formatModerationDate(report.created_at)}
+          </p>
+          <p className="mt-1 text-sm text-stone-500">
+            Updated {formatModerationDate(report.updated_at)}
           </p>
         </div>
         <StatusBadge status={report.status} />
@@ -307,12 +316,13 @@ function DetailPanel({
           <p className="text-sm font-medium text-stone-900">
             {report.reported_profile.full_name}
           </p>
-          <span className="soft-badge bg-stone-200 text-stone-700">
-            {formatLabel(report.reported_profile.profile_status)}
-          </span>
+          <ProfileStatusBadge profileStatus={report.reported_profile.profile_status} />
         </div>
         <p className="mt-1 break-all text-xs text-stone-500">
           {report.reported_profile.id}
+        </p>
+        <p className="mt-2 text-xs text-stone-600">
+          {getProfileStatusMeta(report.reported_profile.profile_status).helper}
         </p>
       </div>
 
@@ -335,7 +345,7 @@ function DetailPanel({
             >
               {UPDATE_STATUS_OPTIONS.map((status) => (
                 <option key={status} value={status}>
-                  {STATUS_META[status].label}
+                  {getReportStatusMeta(status).label}
                 </option>
               ))}
             </select>
@@ -377,22 +387,23 @@ export function AdminReportsQueue({
     }
   }, [reportsQuery.reports, selectedReportId]);
 
-  const selectedReport = useMemo(
-    () => reportsQuery.reports.find((report) => report.id === selectedReportId) ?? null,
-    [reportsQuery.reports, selectedReportId]
-  );
-
   function handleUpdated(report: AdminReportDetail) {
+    if (statusFilter !== "all" && report.status !== statusFilter) {
+      setSelectedReportId(null);
+      reportsQuery.reload();
+      onQueueChanged?.();
+      return;
+    }
+
     reportsQuery.replaceReport(report);
     detailQuery.replaceReport(report);
-    if (statusFilter !== "all" && report.status !== statusFilter) {
-      reportsQuery.reload();
-    }
     onQueueChanged?.();
   }
 
   const listBlockedByAdminAccess =
     reportsQuery.error.toLowerCase().includes("admin access required");
+  const detailPending = selectedReportId !== null && detailQuery.report === null && !detailQuery.error;
+  const emptyState = useMemo(() => getReportEmptyState(statusFilter), [statusFilter]);
 
   return (
     <div className="space-y-5">
@@ -412,7 +423,7 @@ export function AdminReportsQueue({
                   : "border border-stone-300 bg-white text-stone-800 hover:bg-stone-50"
               }`}
             >
-              {status === "all" ? "All" : STATUS_META[status].label}
+              {status === "all" ? "All" : getReportStatusMeta(status).label}
             </button>
           ))}
         </div>
@@ -449,12 +460,7 @@ export function AdminReportsQueue({
                 onRetry={reportsQuery.reload}
               />
             ) : reportsQuery.reports.length === 0 ? (
-              <div className="card p-6">
-                <h3 className="text-lg font-semibold text-stone-900">No reports found</h3>
-                <p className="mt-2 text-sm text-stone-600">
-                  There are no reports for the selected status.
-                </p>
-              </div>
+              <EmptyStateCard title={emptyState.title} description={emptyState.description} />
             ) : (
               <div className="card overflow-hidden">
                 <div className="flex items-center justify-between gap-3 border-b border-stone-200 p-5">
@@ -485,8 +491,8 @@ export function AdminReportsQueue({
           </div>
 
           <DetailPanel
-            report={detailQuery.report ?? (selectedReport as AdminReportDetail | null)}
-            loading={detailQuery.loading}
+            report={detailQuery.report}
+            loading={detailQuery.loading || detailPending}
             error={detailQuery.error}
             onRetry={detailQuery.reload}
             onUpdated={handleUpdated}

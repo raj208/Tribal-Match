@@ -77,6 +77,7 @@ export function useAdminVerificationQueue(): AdminVerificationQueueResult {
     } else {
       setLoading(true);
     }
+    setError("");
 
     listAdminVerifications({ limit: 100 })
       .then((data) => {
@@ -134,6 +135,7 @@ export function useAdminVerificationDetail(
 
     let active = true;
     setLoading(true);
+    setError("");
 
     getAdminVerification(itemId)
       .then((data) => {

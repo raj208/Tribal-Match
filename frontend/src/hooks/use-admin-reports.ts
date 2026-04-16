@@ -77,6 +77,7 @@ export function useAdminReports(statusFilter: AdminReportStatusFilter): AdminRep
     } else {
       setLoading(true);
     }
+    setError("");
 
     listAdminReports({ status: statusFilter, limit: 100 })
       .then((data) => {
@@ -138,6 +139,7 @@ export function useAdminReportDetail(reportId: string | null): AdminReportDetail
 
     let active = true;
     setLoading(true);
+    setError("");
 
     getAdminReport(reportId)
       .then((data) => {

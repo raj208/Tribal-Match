@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:admin-moderation": "tsc -p tsconfig.admin-tests.json --pretty false && node --test .tmp-admin-tests/tests/admin-moderation-display.test.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",

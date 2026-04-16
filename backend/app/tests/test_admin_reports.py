@@ -19,7 +19,7 @@ def _auth_headers(email: str) -> dict[str, str]:
 
 @pytest.fixture
 def admin_headers(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
-    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"], ["rajendrafcb3087@gmail.com"])
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
     return _auth_headers("admin@example.com")
 
 
@@ -106,11 +106,46 @@ def _create_report_fixture(
 
 
 def test_admin_reports_list_requires_admin(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"], ["rajendrafcb3087@gmail.com"])
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
 
     response = client.get(
         ADMIN_REPORTS_PATH,
         headers=_auth_headers("normal@example.com"),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Admin access required"}
+
+
+def test_admin_report_detail_requires_admin(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    report, _, _, _ = _create_report_fixture(db_session)
+
+    response = client.get(
+        f"{ADMIN_REPORTS_PATH}/{report.id}",
+        headers=_auth_headers("normal@example.com"),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Admin access required"}
+
+
+def test_admin_report_patch_requires_admin(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    report, _, _, _ = _create_report_fixture(db_session)
+
+    response = client.patch(
+        f"{ADMIN_REPORTS_PATH}/{report.id}",
+        headers=_auth_headers("normal@example.com"),
+        json={"status": "reviewed"},
     )
 
     assert response.status_code == 403

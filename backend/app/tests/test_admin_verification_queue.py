@@ -93,6 +93,65 @@ def test_admin_verification_queue_requires_admin(client, monkeypatch: pytest.Mon
     assert response.json() == {"detail": "Admin access required"}
 
 
+def test_admin_verification_detail_requires_admin(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    target_user = _create_user(db_session, "detail-blocked@example.com")
+    target_profile = _create_profile(
+        db_session,
+        user=target_user,
+        full_name="Blocked Detail User",
+        verification_status=VerificationStatus.UPLOADED,
+    )
+    intro_video = _create_intro_video(
+        db_session,
+        user=target_user,
+        profile=target_profile,
+        verification_status=VerificationStatus.UPLOADED,
+    )
+
+    response = client.get(
+        f"{ADMIN_VERIFICATIONS_PATH}/{intro_video.id}",
+        headers=_auth_headers("normal@example.com"),
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Admin access required"}
+
+
+def test_admin_verification_patch_requires_admin(
+    client,
+    db_session: Session,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    target_user = _create_user(db_session, "patch-blocked@example.com")
+    target_profile = _create_profile(
+        db_session,
+        user=target_user,
+        full_name="Blocked Patch User",
+        verification_status=VerificationStatus.UNDER_REVIEW,
+    )
+    intro_video = _create_intro_video(
+        db_session,
+        user=target_user,
+        profile=target_profile,
+        verification_status=VerificationStatus.UNDER_REVIEW,
+    )
+
+    response = client.patch(
+        f"{ADMIN_VERIFICATIONS_PATH}/{intro_video.id}",
+        headers=_auth_headers("normal@example.com"),
+        json={"status": "approved"},
+    )
+
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Admin access required"}
+
+
 def test_admin_verification_queue_lists_uploaded_and_under_review_items_only(
     client,
     db_session: Session,
@@ -314,3 +373,33 @@ def test_admin_verification_patch_rejects_non_decision_status(
     assert response.json() == {
         "detail": "Verification review status must be approved or rejected"
     }
+
+
+def test_admin_verification_patch_rejects_already_reviewed_item(
+    client,
+    db_session: Session,
+    admin_headers: dict[str, str],
+) -> None:
+    _create_user(db_session, "admin@example.com")
+    target_user = _create_user(db_session, "already-approved@example.com")
+    target_profile = _create_profile(
+        db_session,
+        user=target_user,
+        full_name="Already Approved User",
+        verification_status=VerificationStatus.APPROVED,
+    )
+    intro_video = _create_intro_video(
+        db_session,
+        user=target_user,
+        profile=target_profile,
+        verification_status=VerificationStatus.APPROVED,
+    )
+
+    response = client.patch(
+        f"{ADMIN_VERIFICATIONS_PATH}/{intro_video.id}",
+        headers=admin_headers,
+        json={"status": "rejected", "reason": "Retry review"},
+    )
+
+    assert response.status_code == 409
+    assert response.json() == {"detail": "Verification item is not pending review"}
