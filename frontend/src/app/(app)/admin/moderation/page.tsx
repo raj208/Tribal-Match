@@ -1,13 +1,13 @@
-import { AdminReportsQueue } from "@/components/admin/admin-reports-queue";
+import { AdminModerationDashboard } from "@/components/admin/admin-moderation-dashboard";
 import { PageShell } from "@/components/shared/page-shell";
 
 export default function AdminModerationPage() {
   return (
     <PageShell
-      title="Admin Reports"
-      description="Review submitted profile reports and update their moderation status."
+      title="Moderation Dashboard"
+      description="Review reports and intro video verification items from one admin workspace."
     >
-      <AdminReportsQueue />
+      <AdminModerationDashboard />
     </PageShell>
   );
 }

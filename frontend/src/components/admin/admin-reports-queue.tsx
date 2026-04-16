@@ -361,7 +361,11 @@ function DetailPanel({
   );
 }
 
-export function AdminReportsQueue() {
+export function AdminReportsQueue({
+  onQueueChanged,
+}: {
+  onQueueChanged?: () => void;
+}) {
   const [statusFilter, setStatusFilter] = useState<AdminReportStatusFilter>("open");
   const reportsQuery = useAdminReports(statusFilter);
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
@@ -384,6 +388,7 @@ export function AdminReportsQueue() {
     if (statusFilter !== "all" && report.status !== statusFilter) {
       reportsQuery.reload();
     }
+    onQueueChanged?.();
   }
 
   const listBlockedByAdminAccess =
