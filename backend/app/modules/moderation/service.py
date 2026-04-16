@@ -15,14 +15,16 @@ from app.modules.moderation.repository import (
     update_report_status,
 )
 from app.modules.moderation.schemas import (
+    AdminProfileModerationActionResponse,
     AdminReportDetail,
     AdminReportListItem,
     AdminReportProfileSummary,
     AdminReportUserSummary,
 )
 from app.modules.profiles.models import Profile
+from app.modules.profiles.repository import update_profile
 from app.modules.users.models import User
-from app.shared.enums import ReportStatus
+from app.shared.enums import ProfileStatus, ReportStatus
 
 
 _ALLOWED_REPORT_STATUS_TRANSITIONS: dict[ReportStatus, set[ReportStatus]] = {
@@ -182,11 +184,60 @@ def update_admin_report_status(
     return _build_admin_report_detail(refreshed_record)
 
 
+def hide_admin_profile(
+    db: Session,
+    *,
+    profile_id: UUID,
+) -> AdminProfileModerationActionResponse:
+    profile = _get_target_profile_or_404(db, profile_id=profile_id)
+    current_status = _coerce_profile_status(profile.profile_status)
+
+    if current_status == ProfileStatus.HIDDEN:
+        return _build_admin_profile_action_response(profile)
+
+    if current_status != ProfileStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only published profiles can be hidden",
+        )
+
+    updated_profile = update_profile(db, profile, {"profile_status": ProfileStatus.HIDDEN})
+    return _build_admin_profile_action_response(updated_profile)
+
+
+def unhide_admin_profile(
+    db: Session,
+    *,
+    profile_id: UUID,
+) -> AdminProfileModerationActionResponse:
+    profile = _get_target_profile_or_404(db, profile_id=profile_id)
+    current_status = _coerce_profile_status(profile.profile_status)
+
+    if current_status == ProfileStatus.PUBLISHED:
+        return _build_admin_profile_action_response(profile)
+
+    if current_status != ProfileStatus.HIDDEN:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Only hidden profiles can be restored to published",
+        )
+
+    updated_profile = update_profile(db, profile, {"profile_status": ProfileStatus.PUBLISHED})
+    return _build_admin_profile_action_response(updated_profile)
+
+
 def _coerce_report_status(value: ReportStatus | str) -> ReportStatus:
     if isinstance(value, ReportStatus):
         return value
 
     return ReportStatus(str(value))
+
+
+def _coerce_profile_status(value: ProfileStatus | str) -> ProfileStatus:
+    if isinstance(value, ProfileStatus):
+        return value
+
+    return ProfileStatus(str(value))
 
 
 def _build_user_summary(user: User) -> AdminReportUserSummary:
@@ -222,4 +273,14 @@ def _build_admin_report_detail(record: ReportWithContext) -> AdminReportDetail:
         **_build_admin_report_list_item(record).model_dump(),
         notes=record.report.notes,
         updated_at=record.report.updated_at,
+    )
+
+
+def _build_admin_profile_action_response(
+    profile: Profile,
+) -> AdminProfileModerationActionResponse:
+    return AdminProfileModerationActionResponse(
+        success=True,
+        profile_id=profile.id,
+        profile_status=profile.profile_status,
     )

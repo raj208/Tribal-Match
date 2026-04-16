@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_admin_user, get_current_user
 from app.modules.moderation.schemas import (
+    AdminProfileModerationActionResponse,
     AdminReportDetail,
     AdminReportListItem,
     AdminReportStatusUpdate,
@@ -17,9 +18,11 @@ from app.modules.moderation.schemas import (
 )
 from app.modules.moderation.service import (
     block_profile,
+    hide_admin_profile,
     get_admin_report_detail,
     list_admin_reports,
     report_profile,
+    unhide_admin_profile,
     unblock_profile,
     update_admin_report_status,
 )
@@ -81,6 +84,30 @@ def update_admin_report_status_route(
         db,
         report_id=report_id,
         next_status=payload.status,
+    )
+
+
+@router.post("/admin/profiles/{profile_id}/hide", response_model=AdminProfileModerationActionResponse)
+def hide_admin_profile_route(
+    profile_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    _current_admin_user: Annotated[User, Depends(get_current_admin_user)],
+) -> AdminProfileModerationActionResponse:
+    return hide_admin_profile(
+        db,
+        profile_id=profile_id,
+    )
+
+
+@router.post("/admin/profiles/{profile_id}/unhide", response_model=AdminProfileModerationActionResponse)
+def unhide_admin_profile_route(
+    profile_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    _current_admin_user: Annotated[User, Depends(get_current_admin_user)],
+) -> AdminProfileModerationActionResponse:
+    return unhide_admin_profile(
+        db,
+        profile_id=profile_id,
     )
 
 

@@ -55,3 +55,9 @@ class AdminReportStatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     status: ReportStatus
+
+
+class AdminProfileModerationActionResponse(BaseModel):
+    success: bool = True
+    profile_id: UUID
+    profile_status: ProfileStatus
