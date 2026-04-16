@@ -9,4 +9,5 @@ export const appRoutes = [
   "/profile/edit",
   "/verification",
   "/settings",
+  "/admin/moderation",
 ];

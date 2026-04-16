@@ -10,6 +10,7 @@ const links = [
   { href: "/profile", label: "My Profile" },
   { href: "/verification", label: "Verification" },
   { href: "/settings", label: "Settings" },
+  { href: "/admin/moderation", label: "Admin Reports" },
 ];
 
 export function AppSidebar() {

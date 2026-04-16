@@ -19,7 +19,7 @@ def _auth_headers(email: str) -> dict[str, str]:
 
 @pytest.fixture
 def admin_headers(monkeypatch: pytest.MonkeyPatch) -> dict[str, str]:
-    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"], ["rajendrafcb3087@gmail.com"])
     return _auth_headers("admin@example.com")
 
 
@@ -106,7 +106,7 @@ def _create_report_fixture(
 
 
 def test_admin_reports_list_requires_admin(client, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"], ["rajendrafcb3087@gmail.com"])
 
     response = client.get(
         ADMIN_REPORTS_PATH,

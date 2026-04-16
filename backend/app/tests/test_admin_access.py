@@ -15,7 +15,7 @@ def test_moderation_admin_health_requires_authentication(client) -> None:
 
 
 def test_moderation_admin_health_rejects_authenticated_non_admin(client, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
+    monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"], ["rajendrafcb3087@gmail.com"])
 
     response = client.get(
         ADMIN_HEALTH_PATH,
@@ -27,7 +27,7 @@ def test_moderation_admin_health_rejects_authenticated_non_admin(client, monkeyp
 
 
 def test_moderation_admin_health_allows_configured_admin_email(client, monkeypatch) -> None:
-    monkeypatch.setattr(settings, "admin_email_allowlist", [" Admin@Example.com "])
+    monkeypatch.setattr(settings, "admin_email_allowlist", [" Admin@Example.com "], ["rajendrafcb3087@gmail.com"])
 
     response = client.get(
         ADMIN_HEALTH_PATH,
