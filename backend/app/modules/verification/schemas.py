@@ -1,9 +1,9 @@
-# Schemas for the verification module will be added in later steps.
 from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.shared.enums import ProfileStatus
 from app.shared.enums import VerificationStatus
 
 
@@ -30,3 +30,39 @@ class IntroVideoRead(BaseModel):
 class VerificationRead(BaseModel):
     profile_verification_status: VerificationStatus
     intro_video: IntroVideoRead | None
+
+
+class AdminVerificationUserSummary(BaseModel):
+    id: UUID
+    email: str
+
+
+class AdminVerificationProfileSummary(BaseModel):
+    id: UUID
+    user_id: UUID
+    full_name: str
+    profile_status: ProfileStatus
+    verification_status: VerificationStatus
+
+
+class AdminVerificationQueueItem(BaseModel):
+    id: UUID
+    user: AdminVerificationUserSummary
+    profile: AdminVerificationProfileSummary
+    verification_status: VerificationStatus
+    video_url: str
+    duration_seconds: int | None
+    created_at: datetime
+
+
+class AdminVerificationDetail(AdminVerificationQueueItem):
+    upload_status: str
+    moderation_notes: str | None
+    updated_at: datetime
+
+
+class AdminVerificationReviewUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    status: VerificationStatus
+    reason: str | None = Field(default=None, max_length=1000)
