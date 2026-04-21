@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,8 +11,16 @@ from app.core.config import settings
 from app.db.migration_runner import run_database_migrations
 
 
+def _is_local_database_url(database_url: str) -> bool:
+    host = (urlsplit(database_url).hostname or "").strip().lower()
+    return host in {"localhost", "127.0.0.1", "::1", "postgres"}
+
+
 def _should_run_migrations_on_startup() -> bool:
-    return settings.app_env.strip().lower() == "development" or settings.run_db_migrations_on_startup
+    if settings.run_db_migrations_on_startup:
+        return True
+
+    return settings.app_env.strip().lower() == "development" and _is_local_database_url(settings.database_url)
 
 
 @asynccontextmanager

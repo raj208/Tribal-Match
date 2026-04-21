@@ -15,11 +15,12 @@ branch_labels = None
 depends_on = None
 
 
-report_status_enum = sa.Enum(
+report_status_enum = postgresql.ENUM(
     "open",
     "reviewed",
     "resolved",
     name="report_status_enum",
+    create_type=False,
 )
 
 

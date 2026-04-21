@@ -15,11 +15,12 @@ branch_labels = None
 depends_on = None
 
 
-interest_status_enum = sa.Enum(
+interest_status_enum = postgresql.ENUM(
     "sent",
     "accepted",
     "declined",
     name="interest_status_enum",
+    create_type=False,
 )
 
 
