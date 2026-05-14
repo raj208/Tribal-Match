@@ -9,3 +9,4 @@ python-dotenv==1.0.1
 python-multipart
 PyJWT[crypto]==2.10.1
 httpx==0.28.1
+boto3==1.39.3

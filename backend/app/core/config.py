@@ -38,7 +38,7 @@ def _parse_string_list(value: Any) -> Any:
 
 class FlexibleEnvSettingsSource(EnvSettingsSource):
     def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
-        if field_name in {"backend_cors_origins", "admin_email_allowlist"}:
+        if field_name in {"backend_cors_origins", "admin_email_allowlist", "frontend_allowed_origins"}:
             return _parse_string_list(value)
 
         return super().prepare_field_value(field_name, field, value, value_is_complex)
@@ -46,7 +46,7 @@ class FlexibleEnvSettingsSource(EnvSettingsSource):
 
 class FlexibleDotEnvSettingsSource(DotEnvSettingsSource):
     def prepare_field_value(self, field_name: str, field: Any, value: Any, value_is_complex: bool) -> Any:
-        if field_name in {"backend_cors_origins", "admin_email_allowlist"}:
+        if field_name in {"backend_cors_origins", "admin_email_allowlist", "frontend_allowed_origins"}:
             return _parse_string_list(value)
 
         return super().prepare_field_value(field_name, field, value, value_is_complex)
@@ -69,6 +69,10 @@ class Settings(BaseSettings):
         alias="BACKEND_CORS_ORIGINS",
     )
     admin_email_allowlist: list[str] = Field(default_factory=list, alias="ADMIN_EMAIL_ALLOWLIST")
+    frontend_allowed_origins: list[str] = Field(
+        default_factory=lambda: ["http://localhost:3000"],
+        alias="FRONTEND_ALLOWED_ORIGINS",
+    )
 
     database_url: str = Field(
         default="postgresql+psycopg://postgres:postgres@localhost:5432/tribal_match",
@@ -95,6 +99,14 @@ class Settings(BaseSettings):
         default="http://localhost:8000/uploads",
         alias="MEDIA_PUBLIC_BASE_URL",
     )
+    aws_region: str = Field(default="", alias="AWS_REGION")
+    aws_s3_bucket: str = Field(default="", alias="AWS_S3_BUCKET")
+    aws_access_key_id: str = Field(default="", alias="AWS_ACCESS_KEY_ID")
+    aws_secret_access_key: str = Field(default="", alias="AWS_SECRET_ACCESS_KEY")
+    aws_s3_photos_prefix: str = Field(default="photos", alias="AWS_S3_PHOTOS_PREFIX")
+    aws_s3_videos_prefix: str = Field(default="videos", alias="AWS_S3_VIDEOS_PREFIX")
+    aws_s3_upload_url_expires_seconds: int = Field(default=900, alias="AWS_S3_UPLOAD_URL_EXPIRES_SECONDS")
+    aws_s3_view_url_expires_seconds: int = Field(default=900, alias="AWS_S3_VIEW_URL_EXPIRES_SECONDS")
 
     @classmethod
     def settings_customise_sources(
