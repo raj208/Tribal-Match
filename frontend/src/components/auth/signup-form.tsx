@@ -79,7 +79,7 @@ export function SignupForm() {
     <form onSubmit={handleSubmit} className="card max-w-xl p-6">
       <h2 className="text-xl font-semibold text-stone-900">Signup</h2>
       <p className="mt-2 text-sm text-stone-600">
-        Create your Tribal Match account with email and password.
+        Create your Gaateh account with email and password.
       </p>
 
       {error ? (

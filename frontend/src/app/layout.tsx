@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { AuthProvider } from "@/components/providers/auth-provider";
 
 export const metadata: Metadata = {
-  title: "Tribal Match",
+  title: "Gaateh",
   description: "Trust-first community matchmaking platform",
 };
 

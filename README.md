@@ -1,6 +1,6 @@
-# Tribal Match
+# Gaateh
 
-Tribal Match is a local full-stack app with:
+Gaateh is a local full-stack app with:
 
 - `frontend/` for the Next.js web app
 - `backend/` for the FastAPI API

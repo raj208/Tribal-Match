@@ -5,7 +5,7 @@ export default function SignupPage() {
   return (
     <PageShell
       title="Signup"
-      description="Create your Tribal Match account before continuing to profile creation."
+      description="Create your Gaateh account before continuing to profile creation."
     >
       <SignupForm />
     </PageShell>

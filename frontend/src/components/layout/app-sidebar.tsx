@@ -21,7 +21,7 @@ export function AppSidebar() {
           Navigation
         </p>
         <h2 className="mt-2 text-lg font-semibold text-stone-900">
-          Tribal Match
+          Gaateh
         </h2>
         <p className="mt-1 text-sm text-stone-600">
           Auth-enabled MVP shell

@@ -9,7 +9,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
       <div className="container-shell py-10">{children}</div>
       <footer className="border-t border-stone-200 bg-white">
         <div className="container-shell py-6 text-sm text-stone-500">
-          Tribal Match MVP foundation
+          Gaateh MVP foundation
         </div>
       </footer>
     </div>

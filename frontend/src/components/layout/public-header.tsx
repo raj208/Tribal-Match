@@ -11,7 +11,7 @@ export function PublicHeader() {
     <header className="border-b border-stone-200 bg-white/90 backdrop-blur">
       <div className="container-shell flex items-center justify-between py-4">
         <Link href="/" className="text-lg font-semibold text-stone-900">
-          Tribal Match
+          Gaateh
         </Link>
 
         <nav className="flex items-center gap-5 text-sm text-stone-600">

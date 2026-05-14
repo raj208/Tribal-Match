@@ -15,7 +15,7 @@ export default function LandingPage() {
             </h1>
 
             <p className="mt-4 max-w-2xl text-base text-stone-600">
-              Tribal Match is being built as a profile-first experience with
+              Gaateh is being built as a profile-first experience with
               identity, authenticity, onboarding, verification, and safe browsing
               as the foundation.
             </p>

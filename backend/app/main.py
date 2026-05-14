@@ -33,7 +33,7 @@ app = FastAPI(
     title=settings.app_name,
     debug=settings.app_debug,
     version="0.1.0",
-    description="Tribal Match modular monolith API foundation",
+    description="Gaateh modular monolith API foundation",
     lifespan=lifespan,
 )
 
