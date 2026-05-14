@@ -78,7 +78,7 @@ export function VideoVerificationCard() {
     <div className="card p-6">
       <h3 className="text-lg font-semibold text-stone-900">Intro video verification</h3>
       <p className="mt-2 text-sm text-stone-600">
-        Upload a real video file here. Keep it between 20 and 30 seconds.
+        Upload a 20 to 30 second intro video. New uploads go straight to private media storage while older local videos still play.
       </p>
 
       {error ? (

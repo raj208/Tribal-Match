@@ -6,7 +6,7 @@ export default function VerificationPage() {
   return (
     <PageShell
       title="Media & Verification"
-      description="You can now upload real local image and video files. Later we can swap this local storage provider with Cloudflare or a mobile-friendly provider."
+      description="Manage private profile photos and intro video verification. Existing local media still works while new uploads move through protected storage."
     >
       <PhotoManager />
       <VideoVerificationCard />

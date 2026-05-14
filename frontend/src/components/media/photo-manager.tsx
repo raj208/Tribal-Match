@@ -96,7 +96,7 @@ export function PhotoManager() {
       <div className="card p-6">
         <h3 className="text-lg font-semibold text-stone-900">Profile photos</h3>
         <p className="mt-2 text-sm text-stone-600">
-          Upload real image files here. These are stored locally for development right now.
+          Upload real image files here. New uploads go straight to private media storage while older local photos stay available.
         </p>
 
         {error ? (

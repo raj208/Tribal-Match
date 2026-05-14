@@ -9,6 +9,13 @@ export type Photo = {
   created_at: string;
 };
 
+export type DirectUploadIntent = {
+  provider: string;
+  object_key: string;
+  upload_url: string;
+  expires_in: number;
+};
+
 export type IntroVideo = {
   id: string;
   user_id: string;
