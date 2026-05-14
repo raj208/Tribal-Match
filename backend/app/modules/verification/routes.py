@@ -11,9 +11,14 @@ from app.modules.verification.schemas import (
     AdminVerificationDetail,
     AdminVerificationQueueItem,
     AdminVerificationReviewUpdate,
+    IntroVideoConfirmRequest,
+    IntroVideoUploadIntentRequest,
+    IntroVideoUploadIntentResponse,
     VerificationRead,
 )
 from app.modules.verification.service import (
+    confirm_my_intro_video_upload,
+    create_my_intro_video_upload_intent,
     get_admin_verification_item,
     get_my_verification,
     list_admin_verification_queue,
@@ -37,6 +42,35 @@ def get_my_verification_route(
     current_user: Annotated[User, Depends(get_current_user)],
 ) -> VerificationRead:
     return get_my_verification(db, current_user)
+
+
+@user_router.post("/video/upload-intent", response_model=IntroVideoUploadIntentResponse)
+def create_intro_video_upload_intent_route(
+    payload: IntroVideoUploadIntentRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> IntroVideoUploadIntentResponse:
+    return create_my_intro_video_upload_intent(
+        db,
+        current_user,
+        filename=payload.filename,
+        content_type=payload.content_type,
+    )
+
+
+@user_router.post("/video/confirm", response_model=VerificationRead)
+def confirm_intro_video_upload_route(
+    payload: IntroVideoConfirmRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> VerificationRead:
+    return confirm_my_intro_video_upload(
+        db,
+        current_user,
+        object_key=payload.object_key,
+        content_type=payload.content_type,
+        duration_seconds=payload.duration_seconds,
+    )
 
 
 @user_router.post("/video/upload", response_model=VerificationRead, status_code=status.HTTP_201_CREATED)

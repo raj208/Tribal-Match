@@ -1,11 +1,18 @@
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.modules.media.providers import LocalMediaStorageProvider
 from app.modules.media.models import IntroVideo
+from app.modules.media.providers import (
+    MEDIA_PROVIDER_S3,
+    LocalMediaStorageProvider,
+    delete_media_object,
+    get_s3_provider,
+    resolve_media_url,
+    validate_video_upload_request,
+)
 from app.modules.profiles.models import Profile
-from app.modules.profiles.repository import update_profile
 from app.modules.profiles.repository import get_profile_by_user_id
+from app.modules.profiles.repository import update_profile
 from app.modules.users.models import User
 from app.modules.verification.repository import (
     create_intro_video,
@@ -43,14 +50,191 @@ def _get_profile_or_404(db: Session, current_user: User):
     return profile
 
 
+def _serialize_intro_video(intro_video: IntroVideo) -> dict:
+    return {
+        "id": intro_video.id,
+        "user_id": intro_video.user_id,
+        "profile_id": intro_video.profile_id,
+        "video_url": resolve_media_url(
+            provider=intro_video.provider,
+            stored_url=intro_video.video_url,
+            object_key=intro_video.object_key,
+            bucket=intro_video.bucket,
+        ),
+        "duration_seconds": intro_video.duration_seconds,
+        "upload_status": intro_video.upload_status,
+        "verification_status": intro_video.verification_status,
+        "moderation_notes": intro_video.moderation_notes,
+        "created_at": intro_video.created_at,
+        "updated_at": intro_video.updated_at,
+    }
+
+
+def _serialize_verification_state(
+    *,
+    profile_verification_status: VerificationStatus,
+    intro_video: IntroVideo | None,
+) -> dict:
+    return {
+        "profile_verification_status": profile_verification_status,
+        "intro_video": _serialize_intro_video(intro_video) if intro_video else None,
+    }
+
+
+def _build_intro_video_data(
+    *,
+    current_user: User,
+    profile_id,
+    stored_video,
+    duration_seconds: int,
+) -> dict:
+    return {
+        "user_id": current_user.id,
+        "profile_id": profile_id,
+        "provider": stored_video.provider,
+        "bucket": stored_video.bucket,
+        "object_key": stored_video.object_key,
+        "content_type": stored_video.content_type,
+        "size_bytes": stored_video.size_bytes,
+        "video_url": stored_video.stored_url,
+        "duration_seconds": duration_seconds,
+        "upload_status": "uploaded",
+        "verification_status": VerificationStatus.UPLOADED,
+        "moderation_notes": None,
+    }
+
+
+def _normalize_owned_video_object_key(*, current_user: User, object_key: str) -> str:
+    normalized_key = object_key.strip().lstrip("/")
+    if not normalized_key or "\\" in normalized_key or ".." in normalized_key.split("/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid video object key",
+        )
+
+    videos_prefix = get_s3_provider().videos_prefix
+    expected_prefix = f"{videos_prefix}/{current_user.id}/"
+    if not normalized_key.startswith(expected_prefix):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Video object key does not belong to the current user",
+        )
+
+    return normalized_key
+
+
+def _upsert_intro_video_state(
+    db: Session,
+    *,
+    profile: Profile,
+    current_user: User,
+    existing: IntroVideo | None,
+    stored_video,
+    duration_seconds: int,
+) -> dict:
+    previous_remote_media = None
+    if (
+        existing
+        and existing.provider == MEDIA_PROVIDER_S3
+        and (
+            existing.bucket != stored_video.bucket
+            or existing.object_key != stored_video.object_key
+            or existing.video_url != stored_video.stored_url
+        )
+    ):
+        previous_remote_media = {
+            "provider": existing.provider,
+            "stored_url": existing.video_url,
+            "object_key": existing.object_key,
+            "bucket": existing.bucket,
+        }
+
+    data = _build_intro_video_data(
+        current_user=current_user,
+        profile_id=profile.id,
+        stored_video=stored_video,
+        duration_seconds=duration_seconds,
+    )
+
+    if existing:
+        intro_video = update_intro_video(db, existing, data)
+    else:
+        intro_video = create_intro_video(db, data)
+
+    profile.verification_status = VerificationStatus.UPLOADED
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    db.refresh(intro_video)
+
+    if previous_remote_media is not None:
+        delete_media_object(**previous_remote_media)
+
+    return _serialize_verification_state(
+        profile_verification_status=profile.verification_status,
+        intro_video=intro_video,
+    )
+
+
 def get_my_verification(db: Session, current_user: User) -> dict:
     profile = _get_profile_or_404(db, current_user)
     intro_video = get_intro_video_by_profile_id(db, profile.id)
 
-    return {
-        "profile_verification_status": profile.verification_status,
-        "intro_video": intro_video,
-    }
+    return _serialize_verification_state(
+        profile_verification_status=profile.verification_status,
+        intro_video=intro_video,
+    )
+
+
+def create_my_intro_video_upload_intent(
+    db: Session,
+    current_user: User,
+    *,
+    filename: str,
+    content_type: str,
+) -> dict:
+    _get_profile_or_404(db, current_user)
+    return get_s3_provider().create_video_upload_intent(
+        user_id=current_user.id,
+        filename=filename,
+        content_type=content_type,
+    )
+
+
+def confirm_my_intro_video_upload(
+    db: Session,
+    current_user: User,
+    *,
+    object_key: str,
+    content_type: str,
+    duration_seconds: int,
+) -> dict:
+    if duration_seconds < 20 or duration_seconds > 30:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Intro video must be between 20 and 30 seconds",
+        )
+
+    profile = _get_profile_or_404(db, current_user)
+    existing = get_intro_video_by_profile_id(db, profile.id)
+    normalized_object_key = _normalize_owned_video_object_key(current_user=current_user, object_key=object_key)
+    _, normalized_content_type = validate_video_upload_request(normalized_object_key, content_type)
+    stored_video = get_s3_provider().inspect_uploaded_object(object_key=normalized_object_key)
+
+    if stored_video.content_type and stored_video.content_type != normalized_content_type:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded video content type did not match the signed upload",
+        )
+
+    return _upsert_intro_video_state(
+        db,
+        profile=profile,
+        current_user=current_user,
+        existing=existing,
+        stored_video=stored_video,
+        duration_seconds=duration_seconds,
+    )
 
 
 def upsert_my_intro_video_file(
@@ -70,34 +254,16 @@ def upsert_my_intro_video_file(
     existing = get_intro_video_by_profile_id(db, profile.id)
 
     storage = LocalMediaStorageProvider()
-    video_url = storage.save_video(file)
+    stored_video = storage.save_video(file)
 
-    data = {
-        "user_id": current_user.id,
-        "profile_id": profile.id,
-        "video_url": video_url,
-        "duration_seconds": duration_seconds,
-        "upload_status": "uploaded",
-        "verification_status": VerificationStatus.UPLOADED,
-        "moderation_notes": None,
-    }
-
-    if existing:
-        update_intro_video(db, existing, data)
-    else:
-        create_intro_video(db, data)
-
-    profile.verification_status = VerificationStatus.UPLOADED
-    db.add(profile)
-    db.commit()
-    db.refresh(profile)
-
-    intro_video = get_intro_video_by_profile_id(db, profile.id)
-
-    return {
-        "profile_verification_status": profile.verification_status,
-        "intro_video": intro_video,
-    }
+    return _upsert_intro_video_state(
+        db,
+        profile=profile,
+        current_user=current_user,
+        existing=existing,
+        stored_video=stored_video,
+        duration_seconds=duration_seconds,
+    )
 
 
 def list_admin_verification_queue(
@@ -228,7 +394,12 @@ def _build_admin_verification_queue_item(
         user=_build_admin_verification_user_summary(user),
         profile=_build_admin_verification_profile_summary(profile),
         verification_status=intro_video.verification_status,
-        video_url=intro_video.video_url,
+        video_url=resolve_media_url(
+            provider=intro_video.provider,
+            stored_url=intro_video.video_url,
+            object_key=intro_video.object_key,
+            bucket=intro_video.bucket,
+        ),
         duration_seconds=intro_video.duration_seconds,
         created_at=intro_video.created_at,
     )

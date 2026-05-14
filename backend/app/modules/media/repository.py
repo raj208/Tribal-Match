@@ -23,6 +23,21 @@ def get_photo_by_id_for_user(db: Session, photo_id: UUID, user_id: UUID) -> Prof
     return db.scalar(stmt)
 
 
+def get_photo_by_profile_and_storage_key(
+    db: Session,
+    *,
+    profile_id: UUID,
+    provider: str,
+    object_key: str,
+) -> ProfilePhoto | None:
+    stmt = select(ProfilePhoto).where(
+        ProfilePhoto.profile_id == profile_id,
+        ProfilePhoto.provider == provider,
+        ProfilePhoto.object_key == object_key,
+    )
+    return db.scalar(stmt)
+
+
 def clear_primary_for_profile(db: Session, profile_id: UUID) -> None:
     photos = list_photos_by_profile_id(db, profile_id)
     changed = False

@@ -6,10 +6,19 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.modules.auth.dependencies import get_current_user
-from app.modules.media.schemas import PhotoDeleteResponse, PhotoRead
+from app.modules.media.schemas import (
+    PhotoConfirmRequest,
+    PhotoDeleteResponse,
+    PhotoRead,
+    PhotoUploadIntentRequest,
+    PhotoUploadIntentResponse,
+)
 from app.modules.media.service import (
+    confirm_my_photo_upload,
+    create_my_photo_upload_intent,
     delete_my_photo,
     list_my_photos,
+    serialize_photo,
     set_my_primary_photo,
     upload_my_photo_file,
 )
@@ -31,6 +40,36 @@ def list_my_photos_route(
     return list_my_photos(db, current_user)
 
 
+@router.post("/photos/upload-intent", response_model=PhotoUploadIntentResponse)
+def create_photo_upload_intent_route(
+    payload: PhotoUploadIntentRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> PhotoUploadIntentResponse:
+    return create_my_photo_upload_intent(
+        db,
+        current_user,
+        filename=payload.filename,
+        content_type=payload.content_type,
+    )
+
+
+@router.post("/photos/confirm", response_model=PhotoRead, status_code=status.HTTP_201_CREATED)
+def confirm_photo_upload_route(
+    payload: PhotoConfirmRequest,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> PhotoRead:
+    return confirm_my_photo_upload(
+        db,
+        current_user,
+        object_key=payload.object_key,
+        content_type=payload.content_type,
+        sort_order=payload.sort_order,
+        make_primary=payload.make_primary,
+    )
+
+
 @router.post("/photos/upload", response_model=PhotoRead, status_code=status.HTTP_201_CREATED)
 def upload_photo_route(
     file: UploadFile = File(...),
@@ -39,13 +78,14 @@ def upload_photo_route(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> PhotoRead:
-    return upload_my_photo_file(
+    photo = upload_my_photo_file(
         db,
         current_user,
         file=file,
         sort_order=sort_order,
         is_primary=is_primary,
     )
+    return serialize_photo(photo)
 
 
 @router.patch("/photos/{photo_id}/primary", response_model=PhotoRead)

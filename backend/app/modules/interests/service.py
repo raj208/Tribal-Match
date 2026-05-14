@@ -18,6 +18,7 @@ from app.modules.interests.repository import (
     list_shortlists_for_user,
     update_interest,
 )
+from app.modules.media.providers import resolve_media_url
 from app.modules.moderation.repository import is_blocked_between
 from app.modules.profiles.models import Profile
 from app.modules.users.models import User
@@ -35,9 +36,20 @@ def _get_primary_photo_url(profile) -> str | None:
 
     for photo in profile.photos:
         if photo.is_primary:
-            return photo.photo_url
+            return resolve_media_url(
+                provider=photo.provider,
+                stored_url=photo.photo_url,
+                object_key=photo.object_key,
+                bucket=photo.bucket,
+            )
 
-    return profile.photos[0].photo_url
+    first_photo = profile.photos[0]
+    return resolve_media_url(
+        provider=first_photo.provider,
+        stored_url=first_photo.photo_url,
+        object_key=first_photo.object_key,
+        bucket=first_photo.bucket,
+    )
 
 
 def _get_target_profile_or_404(db: Session, *, profile_id: UUID, current_user: User) -> Profile:

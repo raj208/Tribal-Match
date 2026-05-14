@@ -12,6 +12,28 @@ class IntroVideoUpsert(BaseModel):
     duration_seconds: int = Field(ge=20, le=30)
 
 
+class IntroVideoUploadIntentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(min_length=3, max_length=255)
+    content_type: str = Field(min_length=3, max_length=255)
+
+
+class IntroVideoUploadIntentResponse(BaseModel):
+    provider: str
+    object_key: str
+    upload_url: str
+    expires_in: int
+
+
+class IntroVideoConfirmRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    object_key: str = Field(min_length=3, max_length=1024)
+    content_type: str = Field(min_length=3, max_length=255)
+    duration_seconds: int = Field(ge=20, le=30)
+
+
 class IntroVideoRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

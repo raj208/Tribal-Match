@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -19,6 +19,11 @@ class ProfilePhoto(Base):
     profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), nullable=False
     )
+    provider: Mapped[str] = mapped_column(String(32), default="local", nullable=False)
+    bucket: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     photo_url: Mapped[str] = mapped_column(String(500), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -45,6 +50,11 @@ class IntroVideo(Base):
     profile_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("profiles.id", ondelete="CASCADE"), unique=True, nullable=False
     )
+    provider: Mapped[str] = mapped_column(String(32), default="local", nullable=False)
+    bucket: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    object_key: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+    content_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    size_bytes: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
     video_url: Mapped[str] = mapped_column(String(500), nullable=False)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     upload_status: Mapped[str] = mapped_column(String(32), default="uploaded", nullable=False)

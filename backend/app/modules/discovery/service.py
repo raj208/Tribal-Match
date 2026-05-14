@@ -5,6 +5,7 @@ from app.modules.discovery.repository import (
     get_discoverable_profile_by_id,
     list_discoverable_profiles,
 )
+from app.modules.media.providers import resolve_media_url
 from app.modules.users.models import User
 
 
@@ -14,9 +15,20 @@ def _get_primary_photo_url(profile) -> str | None:
 
     for photo in profile.photos:
         if photo.is_primary:
-            return photo.photo_url
+            return resolve_media_url(
+                provider=photo.provider,
+                stored_url=photo.photo_url,
+                object_key=photo.object_key,
+                bucket=photo.bucket,
+            )
 
-    return profile.photos[0].photo_url
+    first_photo = profile.photos[0]
+    return resolve_media_url(
+        provider=first_photo.provider,
+        stored_url=first_photo.photo_url,
+        object_key=first_photo.object_key,
+        bucket=first_photo.bucket,
+    )
 
 
 def _serialize_card(profile) -> dict:
@@ -55,7 +67,12 @@ def _serialize_detail(profile) -> dict:
         "photos": [
             {
                 "id": photo.id,
-                "photo_url": photo.photo_url,
+                "photo_url": resolve_media_url(
+                    provider=photo.provider,
+                    stored_url=photo.photo_url,
+                    object_key=photo.object_key,
+                    bucket=photo.bucket,
+                ),
                 "is_primary": photo.is_primary,
                 "sort_order": photo.sort_order,
             }
@@ -64,7 +81,16 @@ def _serialize_detail(profile) -> dict:
                 key=lambda p: (not p.is_primary, p.sort_order),
             )
         ],
-        "intro_video_url": profile.intro_video.video_url if profile.intro_video else None,
+        "intro_video_url": (
+            resolve_media_url(
+                provider=profile.intro_video.provider,
+                stored_url=profile.intro_video.video_url,
+                object_key=profile.intro_video.object_key,
+                bucket=profile.intro_video.bucket,
+            )
+            if profile.intro_video
+            else None
+        ),
     }
 
 

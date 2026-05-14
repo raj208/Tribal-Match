@@ -12,6 +12,29 @@ class PhotoCreate(BaseModel):
     is_primary: bool = False
 
 
+class PhotoUploadIntentRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    filename: str = Field(min_length=3, max_length=255)
+    content_type: str = Field(min_length=3, max_length=255)
+
+
+class PhotoUploadIntentResponse(BaseModel):
+    provider: str
+    object_key: str
+    upload_url: str
+    expires_in: int
+
+
+class PhotoConfirmRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    object_key: str = Field(min_length=3, max_length=1024)
+    content_type: str = Field(min_length=3, max_length=255)
+    sort_order: int = Field(default=0, ge=0)
+    make_primary: bool = False
+
+
 class PhotoRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
