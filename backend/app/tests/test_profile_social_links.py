@@ -56,6 +56,40 @@ def test_create_profile_accepts_and_normalizes_social_links(client) -> None:
     assert body["linkedin_url"] is None
 
 
+@pytest.mark.parametrize(
+    ("field_name", "url"),
+    [
+        ("instagram_url", "https://instagram.com/create.instagram"),
+        ("facebook_url", "https://www.facebook.com/create.facebook"),
+        ("linkedin_url", "https://linkedin.com/in/create-linkedin"),
+    ],
+)
+def test_create_profile_accepts_each_supported_social_platform(
+    client,
+    field_name: str,
+    url: str,
+) -> None:
+    payload = _base_profile_payload()
+    payload.update(
+        {
+            "instagram_url": None,
+            "facebook_url": None,
+            "linkedin_url": None,
+            field_name: url,
+        }
+    )
+
+    response = client.post(
+        PROFILE_PATH,
+        headers=_auth_headers(f"create-{field_name}@example.com"),
+        json=payload,
+    )
+
+    assert response.status_code == 201
+    body = response.json()
+    assert body[field_name] == url
+
+
 def test_create_profile_requires_at_least_one_social_link(client) -> None:
     response = client.post(
         PROFILE_PATH,
@@ -129,6 +163,104 @@ def test_update_profile_uses_existing_social_link_when_omitted(client) -> None:
     body = update_response.json()
     assert body["bio"] == "Updated profile bio"
     assert body["instagram_url"] == "https://instagram.com/current.user"
+
+
+@pytest.mark.parametrize(
+    ("field_name", "url"),
+    [
+        ("instagram_url", "https://www.instagram.com/update.instagram"),
+        ("facebook_url", "https://facebook.com/update.facebook"),
+        ("linkedin_url", "https://www.linkedin.com/in/update-linkedin"),
+    ],
+)
+def test_update_profile_accepts_each_supported_social_platform(
+    client,
+    field_name: str,
+    url: str,
+) -> None:
+    headers = _auth_headers(f"update-{field_name}@example.com")
+    create_response = client.post(
+        PROFILE_PATH,
+        headers=headers,
+        json=_base_profile_payload(instagram_url="https://instagram.com/original.user"),
+    )
+    assert create_response.status_code == 201
+
+    update_response = client.patch(
+        PROFILE_ME_PATH,
+        headers=headers,
+        json={
+            "instagram_url": None,
+            "facebook_url": None,
+            "linkedin_url": None,
+            field_name: url,
+        },
+    )
+
+    assert update_response.status_code == 200
+    body = update_response.json()
+    assert body[field_name] == url
+
+
+@pytest.mark.parametrize(
+    ("case_id", "field_name", "url"),
+    [
+        ("instagram-domain", "instagram_url", "https://example.com/social.user"),
+        ("instagram-http", "instagram_url", "http://instagram.com/social.user"),
+        ("instagram-subdomain", "instagram_url", "https://mobile.instagram.com/social.user"),
+        ("facebook-domain", "facebook_url", "https://example.com/social.user"),
+        ("facebook-http", "facebook_url", "http://facebook.com/social.user"),
+        ("facebook-subdomain", "facebook_url", "https://m.facebook.com/social.user"),
+        ("linkedin-domain", "linkedin_url", "https://example.com/in/social-user"),
+        ("linkedin-http", "linkedin_url", "http://linkedin.com/in/social-user"),
+        ("linkedin-subdomain", "linkedin_url", "https://about.linkedin.com/in/social-user"),
+    ],
+)
+def test_update_profile_rejects_invalid_social_link_domains(
+    client,
+    case_id: str,
+    field_name: str,
+    url: str,
+) -> None:
+    headers = _auth_headers(f"update-invalid-{case_id}@example.com")
+    create_response = client.post(
+        PROFILE_PATH,
+        headers=headers,
+        json=_base_profile_payload(instagram_url="https://instagram.com/valid.original"),
+    )
+    assert create_response.status_code == 201
+
+    response = client.patch(
+        PROFILE_ME_PATH,
+        headers=headers,
+        json={field_name: url},
+    )
+
+    assert response.status_code == 422
+    assert field_name in str(response.json()["detail"])
+
+
+def test_update_profile_rejects_when_all_social_links_are_cleared(client) -> None:
+    headers = _auth_headers("update-clear-social@example.com")
+    create_response = client.post(
+        PROFILE_PATH,
+        headers=headers,
+        json=_base_profile_payload(instagram_url="https://instagram.com/clear.social"),
+    )
+    assert create_response.status_code == 201
+
+    response = client.patch(
+        PROFILE_ME_PATH,
+        headers=headers,
+        json={
+            "instagram_url": "",
+            "facebook_url": " ",
+            "linkedin_url": None,
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "At least one social link is required"}
 
 
 def test_legacy_profile_without_social_links_can_be_read_but_must_add_one_to_update(

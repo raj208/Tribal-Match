@@ -231,6 +231,8 @@ def test_admin_report_detail_returns_review_context(
         notes="Profile appears to impersonate someone.",
     )
     profile.instagram_url = "https://instagram.com/detail.reported"
+    profile.facebook_url = "https://facebook.com/detail.reported"
+    profile.linkedin_url = "https://linkedin.com/in/detail-reported"
     db_session.add(profile)
     db_session.commit()
 
@@ -254,6 +256,8 @@ def test_admin_report_detail_returns_review_context(
     assert body["reported_profile"]["id"] == str(profile.id)
     assert body["reported_profile"]["full_name"] == "Detail Reported User"
     assert body["reported_profile"]["instagram_url"] == "https://instagram.com/detail.reported"
+    assert body["reported_profile"]["facebook_url"] == "https://facebook.com/detail.reported"
+    assert body["reported_profile"]["linkedin_url"] == "https://linkedin.com/in/detail-reported"
 
 
 def test_admin_report_detail_returns_404_for_missing_report(client, admin_headers: dict[str, str]) -> None:

@@ -223,6 +223,42 @@ def test_profile_detail_hides_blocked_profile_even_after_accepted_interest(
     assert response.json() == {"detail": "Profile not found"}
 
 
+@pytest.mark.parametrize(
+    "profile_status",
+    [ProfileStatus.HIDDEN, ProfileStatus.DEACTIVATED, ProfileStatus.DELETED],
+)
+def test_profile_detail_hides_social_links_for_unavailable_profile_status_even_after_accepted_interest(
+    client,
+    db_session: Session,
+    profile_status: ProfileStatus,
+) -> None:
+    sender = _create_user(db_session, f"{profile_status.value}-sender@example.com")
+    receiver = _create_user(db_session, f"{profile_status.value}-receiver@example.com")
+    sender_profile = _create_profile(db_session, user=sender, full_name="Status Sender")
+    receiver_profile = _create_profile(
+        db_session,
+        user=receiver,
+        full_name="Unavailable Receiver",
+        profile_status=profile_status,
+    )
+    _create_interest(
+        db_session,
+        sender_user=sender,
+        receiver_user=receiver,
+        sender_profile=sender_profile,
+        receiver_profile=receiver_profile,
+        status=InterestStatus.ACCEPTED,
+    )
+
+    response = client.get(
+        PROFILE_DETAIL_PATH.format(profile_id=receiver_profile.id),
+        headers=_auth_headers(sender.email),
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Profile not found"}
+
+
 def test_owner_can_view_own_social_links_on_profile_detail(client, db_session: Session) -> None:
     owner = _create_user(db_session, "owner-detail@example.com")
     owner_profile = _create_profile(
@@ -242,18 +278,23 @@ def test_owner_can_view_own_social_links_on_profile_detail(client, db_session: S
     assert response.json()["instagram_url"] == "https://instagram.com/owner.detail"
 
 
-def test_admin_can_view_social_links_for_hidden_profile(
+@pytest.mark.parametrize(
+    "profile_status",
+    [ProfileStatus.HIDDEN, ProfileStatus.DEACTIVATED, ProfileStatus.DELETED],
+)
+def test_admin_can_view_social_links_for_unavailable_profile_status(
     client,
     db_session: Session,
     monkeypatch: pytest.MonkeyPatch,
+    profile_status: ProfileStatus,
 ) -> None:
     monkeypatch.setattr(settings, "admin_email_allowlist", ["admin@example.com"])
-    target_user = _create_user(db_session, "admin-social-target@example.com")
+    target_user = _create_user(db_session, f"admin-social-{profile_status.value}@example.com")
     target_profile = _create_profile(
         db_session,
         user=target_user,
         full_name="Admin Social Target",
-        profile_status=ProfileStatus.HIDDEN,
+        profile_status=profile_status,
         linkedin_url="https://linkedin.com/in/admin-social-target",
     )
 
