@@ -34,6 +34,9 @@ class AdminReportProfileSummary(BaseModel):
     user_id: UUID
     full_name: str
     profile_status: ProfileStatus
+    instagram_url: str | None
+    facebook_url: str | None
+    linkedin_url: str | None
 
 
 class AdminReportListItem(BaseModel):

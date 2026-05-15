@@ -49,6 +49,9 @@ class PublicProfileRead(BaseModel):
     occupation: str | None
     education: str | None
     bio: str | None
+    instagram_url: str | None
+    facebook_url: str | None
+    linkedin_url: str | None
     verification_status: VerificationStatus
     photos: list[DiscoverProfilePhoto]
     intro_video_url: str | None

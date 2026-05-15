@@ -131,3 +131,19 @@ def get_discoverable_profile_by_id(
         )
     )
     return db.scalar(stmt)
+
+
+def get_profile_detail_by_id(
+    db: Session,
+    *,
+    profile_id: UUID,
+) -> Profile | None:
+    stmt = (
+        select(Profile)
+        .options(
+            selectinload(Profile.photos),
+            selectinload(Profile.intro_video),
+        )
+        .where(Profile.id == profile_id)
+    )
+    return db.scalar(stmt)

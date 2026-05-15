@@ -253,6 +253,9 @@ def _build_profile_summary(profile: Profile) -> AdminReportProfileSummary:
         user_id=profile.user_id,
         full_name=profile.full_name,
         profile_status=profile.profile_status,
+        instagram_url=profile.instagram_url,
+        facebook_url=profile.facebook_url,
+        linkedin_url=profile.linkedin_url,
     )
 
 

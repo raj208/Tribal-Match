@@ -381,6 +381,9 @@ def _build_admin_verification_profile_summary(profile: Profile) -> AdminVerifica
         full_name=profile.full_name,
         profile_status=profile.profile_status,
         verification_status=profile.verification_status,
+        instagram_url=profile.instagram_url,
+        facebook_url=profile.facebook_url,
+        linkedin_url=profile.linkedin_url,
     )
 
 

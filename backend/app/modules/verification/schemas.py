@@ -65,6 +65,9 @@ class AdminVerificationProfileSummary(BaseModel):
     full_name: str
     profile_status: ProfileStatus
     verification_status: VerificationStatus
+    instagram_url: str | None
+    facebook_url: str | None
+    linkedin_url: str | None
 
 
 class AdminVerificationQueueItem(BaseModel):

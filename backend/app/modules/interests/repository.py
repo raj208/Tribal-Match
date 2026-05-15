@@ -1,10 +1,11 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.modules.interests.models import Interest, Shortlist
 from app.modules.profiles.models import Profile
+from app.shared.enums import InterestStatus
 
 
 def get_shortlist_by_user_and_profile(
@@ -67,6 +68,22 @@ def get_interest_by_sender_receiver(
         Interest.receiver_user_id == receiver_user_id,
     )
     return db.scalar(stmt)
+
+
+def has_accepted_interest_between(
+    db: Session,
+    *,
+    user_a_id: UUID,
+    user_b_id: UUID,
+) -> bool:
+    stmt = select(Interest.id).where(
+        Interest.status == InterestStatus.ACCEPTED,
+        or_(
+            and_(Interest.sender_user_id == user_a_id, Interest.receiver_user_id == user_b_id),
+            and_(Interest.sender_user_id == user_b_id, Interest.receiver_user_id == user_a_id),
+        ),
+    )
+    return db.scalar(stmt) is not None
 
 
 def create_interest(db: Session, data: dict) -> Interest:

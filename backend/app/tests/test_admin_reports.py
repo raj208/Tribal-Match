@@ -184,6 +184,9 @@ def test_admin_reports_list_returns_queue_items(client, db_session: Session, adm
         "user_id": str(reported.id),
         "full_name": "Queue Reported User",
         "profile_status": "published",
+        "instagram_url": None,
+        "facebook_url": None,
+        "linkedin_url": None,
     }
 
 
@@ -227,6 +230,9 @@ def test_admin_report_detail_returns_review_context(
         reason_code="fake_profile",
         notes="Profile appears to impersonate someone.",
     )
+    profile.instagram_url = "https://instagram.com/detail.reported"
+    db_session.add(profile)
+    db_session.commit()
 
     response = client.get(f"{ADMIN_REPORTS_PATH}/{report.id}", headers=admin_headers)
 
@@ -247,6 +253,7 @@ def test_admin_report_detail_returns_review_context(
     }
     assert body["reported_profile"]["id"] == str(profile.id)
     assert body["reported_profile"]["full_name"] == "Detail Reported User"
+    assert body["reported_profile"]["instagram_url"] == "https://instagram.com/detail.reported"
 
 
 def test_admin_report_detail_returns_404_for_missing_report(client, admin_headers: dict[str, str]) -> None:
