@@ -31,6 +31,9 @@ class Profile(Base):
     occupation: Mapped[str | None] = mapped_column(String(120), nullable=True)
     education: Mapped[str | None] = mapped_column(String(120), nullable=True)
     bio: Mapped[str | None] = mapped_column(Text, nullable=True)
+    instagram_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    facebook_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    linkedin_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     profile_visibility: Mapped[str] = mapped_column(String(32), default="public", nullable=False)
     profile_status: Mapped[ProfileStatus] = mapped_column(
         Enum(ProfileStatus, name="profile_status_enum", values_callable=enum_values, validate_strings=True),

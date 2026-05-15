@@ -10,7 +10,7 @@ from app.modules.profiles.repository import (
     update_preference,
     update_profile,
 )
-from app.modules.profiles.schemas import ProfileCreate, ProfileUpdate
+from app.modules.profiles.schemas import SOCIAL_URL_FIELDS, ProfileCreate, ProfileUpdate
 from app.modules.users.models import User
 
 PROFILE_COMPLETION_FIELDS = [
@@ -42,6 +42,16 @@ def _calculate_completion(data: dict) -> int:
         filled += 1
 
     return int((filled / total) * 100)
+
+
+def _ensure_social_link_present(data: dict) -> None:
+    if any(data.get(field_name) for field_name in SOCIAL_URL_FIELDS):
+        return
+
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="At least one social link is required",
+    )
 
 
 def _upsert_preferences(
@@ -77,6 +87,7 @@ def create_my_profile(db: Session, current_user: User, payload: ProfileCreate) -
 
     data = payload.model_dump()
     preference_payload = data.pop("preferences", None)
+    _ensure_social_link_present(data)
 
     data["user_id"] = current_user.id
     data["completion_percentage"] = _calculate_completion(data)
@@ -116,6 +127,11 @@ def update_my_profile(db: Session, current_user: User, payload: ProfileUpdate) -
 
     updates = payload.model_dump(exclude_unset=True)
     preference_payload = updates.pop("preferences", None)
+    merged_social_links = {
+        field_name: updates.get(field_name, getattr(profile, field_name))
+        for field_name in SOCIAL_URL_FIELDS
+    }
+    _ensure_social_link_present(merged_social_links)
 
     merged = {
         "full_name": updates.get("full_name", profile.full_name),
