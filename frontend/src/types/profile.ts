@@ -28,6 +28,9 @@ export type Profile = {
   occupation: string | null;
   education: string | null;
   bio: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   profile_visibility: string;
   profile_status: string;
   verification_status: string;
@@ -52,6 +55,9 @@ export type ProfilePayload = {
   occupation: string | null;
   education: string | null;
   bio: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   profile_visibility: string;
   profile_status: string;
   preferences: {

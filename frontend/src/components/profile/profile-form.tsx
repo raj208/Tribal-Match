@@ -21,6 +21,9 @@ type FormState = {
   occupation: string;
   education: string;
   bio: string;
+  instagram_url: string;
+  facebook_url: string;
+  linkedin_url: string;
   profile_visibility: string;
   profile_status: string;
   preferred_min_age: string;
@@ -28,6 +31,44 @@ type FormState = {
   preferred_locations: string;
   preferred_communities: string;
   preferred_languages: string;
+};
+
+type SocialField = "instagram_url" | "facebook_url" | "linkedin_url";
+type SocialValidationErrors = Partial<Record<SocialField | "group", string>>;
+
+const SOCIAL_FIELD_NAMES: SocialField[] = [
+  "instagram_url",
+  "facebook_url",
+  "linkedin_url",
+];
+
+const SOCIAL_URL_RULES: Record<
+  SocialField,
+  {
+    label: string;
+    pattern: RegExp;
+    placeholder: string;
+    message: string;
+  }
+> = {
+  instagram_url: {
+    label: "Instagram profile URL",
+    pattern: /^https:\/\/(?:www\.)?instagram\.com\/[^/?#\s][^\s]*$/,
+    placeholder: "https://instagram.com/your.profile",
+    message: "Enter an Instagram URL starting with https://instagram.com/ or https://www.instagram.com/.",
+  },
+  facebook_url: {
+    label: "Facebook profile URL",
+    pattern: /^https:\/\/(?:www\.)?facebook\.com\/[^/?#\s][^\s]*$/,
+    placeholder: "https://facebook.com/your.profile",
+    message: "Enter a Facebook URL starting with https://facebook.com/ or https://www.facebook.com/.",
+  },
+  linkedin_url: {
+    label: "LinkedIn profile URL",
+    pattern: /^https:\/\/(?:www\.)?linkedin\.com\/[^/?#\s][^\s]*$/,
+    placeholder: "https://linkedin.com/in/your-profile",
+    message: "Enter a LinkedIn URL starting with https://linkedin.com/ or https://www.linkedin.com/.",
+  },
 };
 
 const EMPTY_FORM: FormState = {
@@ -45,6 +86,9 @@ const EMPTY_FORM: FormState = {
   occupation: "",
   education: "",
   bio: "",
+  instagram_url: "",
+  facebook_url: "",
+  linkedin_url: "",
   profile_visibility: "public",
   profile_status: "draft",
   preferred_min_age: "",
@@ -82,6 +126,9 @@ function toFormState(profile: Profile): FormState {
     occupation: profile.occupation ?? "",
     education: profile.education ?? "",
     bio: profile.bio ?? "",
+    instagram_url: profile.instagram_url ?? "",
+    facebook_url: profile.facebook_url ?? "",
+    linkedin_url: profile.linkedin_url ?? "",
     profile_visibility: profile.profile_visibility ?? "public",
     profile_status: profile.profile_status ?? "draft",
     preferred_min_age: profile.preferences?.preferred_min_age?.toString() ?? "",
@@ -128,6 +175,9 @@ function buildPayload(form: FormState): ProfilePayload {
     occupation: toNullableString(form.occupation),
     education: toNullableString(form.education),
     bio: toNullableString(form.bio),
+    instagram_url: toNullableString(form.instagram_url),
+    facebook_url: toNullableString(form.facebook_url),
+    linkedin_url: toNullableString(form.linkedin_url),
     profile_visibility: form.profile_visibility || "public",
     profile_status: form.profile_status || "draft",
     preferences: preferencesFilled
@@ -142,6 +192,34 @@ function buildPayload(form: FormState): ProfilePayload {
   };
 }
 
+function validateSocialLinks(form: FormState): SocialValidationErrors {
+  const errors: SocialValidationErrors = {};
+  const normalizedValues = SOCIAL_FIELD_NAMES.map((fieldName) => ({
+    fieldName,
+    value: form[fieldName].trim(),
+  }));
+
+  if (!normalizedValues.some((item) => item.value)) {
+    errors.group = "Add at least one social profile link.";
+  }
+
+  for (const { fieldName, value } of normalizedValues) {
+    if (value && !SOCIAL_URL_RULES[fieldName].pattern.test(value)) {
+      errors[fieldName] = SOCIAL_URL_RULES[fieldName].message;
+    }
+  }
+
+  return errors;
+}
+
+function hasValidationErrors(errors: SocialValidationErrors): boolean {
+  return Object.values(errors).some(Boolean);
+}
+
+function isSocialField(key: keyof FormState): key is SocialField {
+  return SOCIAL_FIELD_NAMES.includes(key as SocialField);
+}
+
 export function ProfileForm() {
   const router = useRouter();
 
@@ -149,6 +227,7 @@ export function ProfileForm() {
   const [loading, setLoading] = useState(true);
   const [hasProfile, setHasProfile] = useState(false);
   const [error, setError] = useState("");
+  const [socialErrors, setSocialErrors] = useState<SocialValidationErrors>({});
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
 
@@ -188,6 +267,13 @@ export function ProfileForm() {
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+    if (isSocialField(key)) {
+      setSocialErrors((prev) => ({
+        ...prev,
+        group: undefined,
+        [key]: undefined,
+      }));
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -197,6 +283,12 @@ export function ProfileForm() {
 
     if (!form.full_name.trim()) {
       setError("Full name is required.");
+      return;
+    }
+
+    const nextSocialErrors = validateSocialLinks(form);
+    setSocialErrors(nextSocialErrors);
+    if (hasValidationErrors(nextSocialErrors)) {
       return;
     }
 
@@ -228,7 +320,7 @@ export function ProfileForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <div className="card p-6">
         <h3 className="text-lg font-semibold text-stone-900">{title}</h3>
         <p className="mt-2 text-sm text-stone-600">
@@ -421,6 +513,48 @@ export function ProfileForm() {
             placeholder="Write a short introduction"
           />
         </label>
+      </div>
+
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold text-stone-900">Social profile links</h3>
+        <p className="mt-2 text-sm text-stone-600">
+          Add at least one social profile. These links will be visible only after both users are mutually interested.
+        </p>
+
+        {socialErrors.group ? (
+          <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {socialErrors.group}
+          </div>
+        ) : null}
+
+        <div className="mt-5 grid gap-4">
+          {SOCIAL_FIELD_NAMES.map((fieldName) => {
+            const rule = SOCIAL_URL_RULES[fieldName];
+            const fieldError = socialErrors[fieldName];
+            return (
+              <label key={fieldName} className="text-sm">
+                <span className="mb-2 block font-medium text-stone-700">{rule.label}</span>
+                <input
+                  value={form[fieldName]}
+                  onChange={(e) => updateField(fieldName, e.target.value)}
+                  type="text"
+                  inputMode="url"
+                  aria-invalid={Boolean(fieldError)}
+                  aria-describedby={fieldError ? `${fieldName}-error` : undefined}
+                  className={`w-full rounded-xl border px-3 py-2 outline-none focus:border-stone-500 ${
+                    fieldError ? "border-red-300 bg-red-50" : "border-stone-300"
+                  }`}
+                  placeholder={rule.placeholder}
+                />
+                {fieldError ? (
+                  <p id={`${fieldName}-error`} className="mt-2 text-xs text-red-700">
+                    {fieldError}
+                  </p>
+                ) : null}
+              </label>
+            );
+          })}
+        </div>
       </div>
 
       <div className="card p-6">
