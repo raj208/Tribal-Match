@@ -41,6 +41,9 @@ export type PublicProfile = {
   occupation: string | null;
   education: string | null;
   bio: string | null;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
   verification_status: string;
   photos: DiscoverProfilePhoto[];
   intro_video_url: string | null;

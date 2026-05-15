@@ -3,12 +3,58 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 
 import { getPublicProfile } from "@/lib/api/discovery";
 import { sendInterest } from "@/lib/api/interests";
 import { blockProfile, reportProfile } from "@/lib/api/moderation";
 import { addToShortlist } from "@/lib/api/shortlist";
 import type { PublicProfile } from "@/types/discovery";
+
+type SocialLink = {
+  label: string;
+  url: string;
+};
+
+function getSocialLinks(profile: PublicProfile): SocialLink[] {
+  return [
+    { label: "Instagram", url: profile.instagram_url ?? "" },
+    { label: "Facebook", url: profile.facebook_url ?? "" },
+    { label: "LinkedIn", url: profile.linkedin_url ?? "" },
+  ].filter((item) => item.url.trim());
+}
+
+function SocialLinksSection({ profile }: { profile: PublicProfile }) {
+  const links = getSocialLinks(profile);
+
+  if (links.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="card p-6">
+      <h3 className="text-lg font-semibold text-stone-900">Social profile links</h3>
+      <p className="mt-2 text-sm text-stone-600">
+        These links are visible because you both have mutual interest.
+      </p>
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        {links.map((link) => (
+          <a
+            key={link.label}
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex max-w-full items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
+          >
+            <span>{link.label}</span>
+            <ExternalLink className="h-4 w-4 shrink-0" aria-hidden="true" />
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export function ProfileDetailView({ profileId }: { profileId: string }) {
   const router = useRouter();
@@ -233,6 +279,8 @@ export function ProfileDetailView({ profileId }: { profileId: string }) {
         <h3 className="text-lg font-semibold text-stone-900">About</h3>
         <p className="mt-3 text-sm text-stone-700">{profile.bio || "—"}</p>
       </div>
+
+      <SocialLinksSection profile={profile} />
 
       <div className="card p-6">
         <h3 className="text-lg font-semibold text-stone-900">Report this profile</h3>
