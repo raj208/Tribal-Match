@@ -10,6 +10,9 @@ export type AdminReportProfileSummary = {
   user_id: string;
   full_name: string;
   profile_status: ProfileStatus;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
 };
 
 export type AdminReportListItem = {

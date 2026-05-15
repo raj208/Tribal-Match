@@ -11,6 +11,9 @@ export type AdminVerificationProfileSummary = {
   full_name: string;
   profile_status: ProfileStatus;
   verification_status: VerificationStatus;
+  instagram_url: string | null;
+  facebook_url: string | null;
+  linkedin_url: string | null;
 };
 
 export type AdminVerificationQueueItem = {

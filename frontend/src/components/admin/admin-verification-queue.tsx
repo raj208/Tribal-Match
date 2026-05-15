@@ -32,6 +32,11 @@ import type {
   AdminVerificationUserSummary,
 } from "@/types/admin-verification";
 
+type SocialLink = {
+  label: string;
+  url: string;
+};
+
 function getUserLabel(user: AdminVerificationUserSummary) {
   return user.email || user.id;
 }
@@ -189,6 +194,45 @@ function IdentitySummary({
       <p className="text-xs uppercase tracking-[0.16em] text-stone-500">{label}</p>
       <p className="mt-2 break-all text-sm font-medium text-stone-900">{primary}</p>
       <p className="mt-1 break-all text-xs text-stone-500">{secondary}</p>
+    </div>
+  );
+}
+
+function getSocialLinks(profile: AdminVerificationProfileSummary): SocialLink[] {
+  return [
+    { label: "Instagram", url: profile.instagram_url ?? "" },
+    { label: "Facebook", url: profile.facebook_url ?? "" },
+    { label: "LinkedIn", url: profile.linkedin_url ?? "" },
+  ].filter((item) => item.url.trim());
+}
+
+function SocialLinksPanel({ profile }: { profile: AdminVerificationProfileSummary }) {
+  const links = getSocialLinks(profile);
+
+  return (
+    <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-stone-500">
+        Social profile links
+      </p>
+
+      {links.length === 0 ? (
+        <p className="mt-3 text-sm text-stone-600">No social links provided.</p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {links.map((link) => (
+            <a
+              key={link.label}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
+            >
+              <span>{link.label}</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -353,6 +397,8 @@ function VerificationDetailPanel({
           Profile verification state mirrors the intro video review decision.
         </p>
       </div>
+
+      <SocialLinksPanel profile={item.profile} />
 
       <div className="mt-5 rounded-xl border border-stone-200 p-4">
         <label className="block text-sm">

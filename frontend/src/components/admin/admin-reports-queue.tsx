@@ -5,6 +5,7 @@ import {
   AlertTriangle,
   CheckCircle2,
   Eye,
+  ExternalLink,
   FileWarning,
   RefreshCw,
   ShieldCheck,
@@ -40,6 +41,11 @@ const STATUS_OPTIONS: Array<AdminReportStatusFilter> = [
 ];
 
 const UPDATE_STATUS_OPTIONS: ReportStatus[] = ["open", "reviewed", "resolved"];
+
+type SocialLink = {
+  label: string;
+  url: string;
+};
 
 function getUserLabel(user: AdminReportUserSummary) {
   return user.email || user.id;
@@ -200,6 +206,45 @@ function IdentitySummary({
   );
 }
 
+function getSocialLinks(profile: AdminReportProfileSummary): SocialLink[] {
+  return [
+    { label: "Instagram", url: profile.instagram_url ?? "" },
+    { label: "Facebook", url: profile.facebook_url ?? "" },
+    { label: "LinkedIn", url: profile.linkedin_url ?? "" },
+  ].filter((item) => item.url.trim());
+}
+
+function SocialLinksPanel({ profile }: { profile: AdminReportProfileSummary }) {
+  const links = getSocialLinks(profile);
+
+  return (
+    <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-4">
+      <p className="text-xs uppercase tracking-[0.16em] text-stone-500">
+        Social profile links
+      </p>
+
+      {links.length === 0 ? (
+        <p className="mt-3 text-sm text-stone-600">No social links provided.</p>
+      ) : (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {links.map((link) => (
+            <a
+              key={link.label}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex max-w-full items-center gap-2 rounded-xl border border-stone-300 bg-white px-3 py-2 text-sm font-medium text-stone-800 hover:bg-stone-100"
+            >
+              <span>{link.label}</span>
+              <ExternalLink className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DetailPanel({
   report,
   loading,
@@ -325,6 +370,8 @@ function DetailPanel({
           {getProfileStatusMeta(report.reported_profile.profile_status).helper}
         </p>
       </div>
+
+      <SocialLinksPanel profile={report.reported_profile} />
 
       <div className="mt-5">
         <p className="text-sm font-medium text-stone-900">Notes</p>
