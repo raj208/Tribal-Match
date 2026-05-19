@@ -1,6 +1,7 @@
 import json
 from functools import lru_cache
 from json import JSONDecodeError
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
@@ -11,6 +12,8 @@ from pydantic_settings import (
     PydanticBaseSettingsSource,
     SettingsConfigDict,
 )
+
+BACKEND_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 def _parse_string_list(value: Any) -> Any:
@@ -54,7 +57,7 @@ class FlexibleDotEnvSettingsSource(DotEnvSettingsSource):
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=BACKEND_ENV_FILE,
         env_file_encoding="utf-8",
         extra="ignore",
     )

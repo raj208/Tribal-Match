@@ -243,9 +243,13 @@ class S3MediaStorageProvider:
         return boto3.client(
             "s3",
             region_name=self.region,
+            endpoint_url=f"https://s3.{self.region}.amazonaws.com",
             aws_access_key_id=settings.aws_access_key_id,
             aws_secret_access_key=settings.aws_secret_access_key,
-            config=BotoConfig(signature_version="s3v4"),
+            config=BotoConfig(
+                signature_version="s3v4",
+                s3={"addressing_style": "virtual"},
+            ),
         )
 
     def _build_object_key(self, *, prefix: str, user_id: Any, extension: str) -> str:
