@@ -11,12 +11,21 @@ from app.core.config import settings
 try:
     import boto3
     from botocore.config import Config as BotoConfig
-    from botocore.exceptions import BotoCoreError, ClientError
+    from botocore.exceptions import (
+        BotoCoreError,
+        ClientError,
+        NoCredentialsError,
+        PartialCredentialsError,
+    )
+    S3_CREDENTIAL_ERROR_TYPES = (NoCredentialsError, PartialCredentialsError)
+    S3_CLIENT_ERROR_TYPES = (ClientError,)
+    S3_CORE_ERROR_TYPES = (BotoCoreError,)
 except ImportError:  # pragma: no cover - exercised only when dependency is missing at runtime
     boto3 = None
     BotoConfig = None
-    BotoCoreError = Exception
-    ClientError = Exception
+    S3_CREDENTIAL_ERROR_TYPES = ()
+    S3_CLIENT_ERROR_TYPES = ()
+    S3_CORE_ERROR_TYPES = ()
 
 
 MEDIA_PROVIDER_LOCAL = "local"
@@ -227,8 +236,6 @@ class S3MediaStorageProvider:
         required_values = {
             "AWS_REGION": self.region,
             "AWS_S3_BUCKET": self.bucket,
-            "AWS_ACCESS_KEY_ID": settings.aws_access_key_id.strip(),
-            "AWS_SECRET_ACCESS_KEY": settings.aws_secret_access_key.strip(),
         }
         missing = [name for name, value in required_values.items() if not value]
         if missing:
@@ -237,20 +244,44 @@ class S3MediaStorageProvider:
                 detail=f"S3 media storage is not configured ({', '.join(missing)} missing)",
             )
 
+        access_key_id = settings.aws_access_key_id.strip()
+        secret_access_key = settings.aws_secret_access_key.strip()
+        if bool(access_key_id) != bool(secret_access_key):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="S3 media storage is not configured (set both AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY)",
+            )
+
     @property
     def client(self):
         self._require_configuration()
-        return boto3.client(
-            "s3",
-            region_name=self.region,
-            endpoint_url=f"https://s3.{self.region}.amazonaws.com",
-            aws_access_key_id=settings.aws_access_key_id,
-            aws_secret_access_key=settings.aws_secret_access_key,
-            config=BotoConfig(
+        client_kwargs = {
+            "region_name": self.region,
+            "endpoint_url": f"https://s3.{self.region}.amazonaws.com",
+            "config": BotoConfig(
                 signature_version="s3v4",
                 s3={"addressing_style": "virtual"},
             ),
-        )
+        }
+        access_key_id = settings.aws_access_key_id.strip()
+        secret_access_key = settings.aws_secret_access_key.strip()
+        session_token = settings.aws_session_token.strip()
+        if access_key_id and secret_access_key:
+            client_kwargs["aws_access_key_id"] = access_key_id
+            client_kwargs["aws_secret_access_key"] = secret_access_key
+            if session_token:
+                client_kwargs["aws_session_token"] = session_token
+
+        return boto3.client("s3", **client_kwargs)
+
+    def _raise_credentials_error(self, exc: Exception) -> None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "S3 media storage is not configured "
+                "(set AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY or attach an IAM role)"
+            ),
+        ) from exc
 
     def _build_object_key(self, *, prefix: str, user_id: Any, extension: str) -> str:
         return f"{prefix}/{user_id}/{uuid.uuid4().hex}{extension}"
@@ -277,7 +308,9 @@ class S3MediaStorageProvider:
                 ExpiresIn=self.upload_expires_in,
                 HttpMethod="PUT",
             )
-        except (ClientError, BotoCoreError) as exc:
+        except S3_CREDENTIAL_ERROR_TYPES as exc:
+            self._raise_credentials_error(exc)
+        except (*S3_CLIENT_ERROR_TYPES, *S3_CORE_ERROR_TYPES) as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Unable to create an S3 upload URL",
@@ -293,7 +326,9 @@ class S3MediaStorageProvider:
     def inspect_uploaded_object(self, *, object_key: str) -> StoredMediaObject:
         try:
             response = self.client.head_object(Bucket=self.bucket, Key=object_key)
-        except ClientError as exc:
+        except S3_CREDENTIAL_ERROR_TYPES as exc:
+            self._raise_credentials_error(exc)
+        except S3_CLIENT_ERROR_TYPES as exc:
             error_code = str(exc.response.get("Error", {}).get("Code", "")).strip()
             if error_code in {"404", "NoSuchKey", "NotFound"}:
                 raise HTTPException(
@@ -305,7 +340,7 @@ class S3MediaStorageProvider:
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Unable to verify the uploaded S3 object",
             ) from exc
-        except BotoCoreError as exc:
+        except S3_CORE_ERROR_TYPES as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Unable to verify the uploaded S3 object",
@@ -351,7 +386,9 @@ class S3MediaStorageProvider:
                 Params={"Bucket": resolved_bucket, "Key": resolved_key},
                 ExpiresIn=self.view_expires_in,
             )
-        except (ClientError, BotoCoreError) as exc:
+        except S3_CREDENTIAL_ERROR_TYPES as exc:
+            self._raise_credentials_error(exc)
+        except (*S3_CLIENT_ERROR_TYPES, *S3_CORE_ERROR_TYPES) as exc:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Unable to create an S3 media view URL",
@@ -370,7 +407,7 @@ class S3MediaStorageProvider:
 
         try:
             self.client.delete_object(Bucket=resolved_bucket, Key=resolved_key)
-        except (ClientError, BotoCoreError):
+        except (*S3_CLIENT_ERROR_TYPES, *S3_CORE_ERROR_TYPES):
             return
 
 

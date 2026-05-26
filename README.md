@@ -74,6 +74,12 @@ The local setup expects:
 
 These defaults already match `docker-compose.yml` and the example env files.
 
+## S3 Media Storage
+
+For production-style profile photo and intro video uploads, see:
+
+- `docs/S3_MEDIA_STORAGE_SETUP.md`
+
 ## Quick Stop
 
 To stop the database:

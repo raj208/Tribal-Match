@@ -106,6 +106,7 @@ class Settings(BaseSettings):
     aws_s3_bucket: str = Field(default="", alias="AWS_S3_BUCKET")
     aws_access_key_id: str = Field(default="", alias="AWS_ACCESS_KEY_ID")
     aws_secret_access_key: str = Field(default="", alias="AWS_SECRET_ACCESS_KEY")
+    aws_session_token: str = Field(default="", alias="AWS_SESSION_TOKEN")
     aws_s3_photos_prefix: str = Field(default="photos", alias="AWS_S3_PHOTOS_PREFIX")
     aws_s3_videos_prefix: str = Field(default="videos", alias="AWS_S3_VIDEOS_PREFIX")
     aws_s3_upload_url_expires_seconds: int = Field(default=900, alias="AWS_S3_UPLOAD_URL_EXPIRES_SECONDS")
